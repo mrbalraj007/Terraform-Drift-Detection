@@ -261,6 +261,49 @@ Value:
 
 Save ✅ -->
 
+✅ 1. How Manual Approval Works in GitHub Actions
+GitHub supports real approval gates via Environments.
+✅ When a job references an environment:
+
+Workflow pauses
+Approval is required from configured reviewers
+Only then does destroy proceed
+
+This is:
+
+Auditable
+Native
+Industry best practice
+
+
+✅ 2. One‑Time Setup in GitHub UI (MANDATORY)
+Step A — Create an Environment
+
+Repo → Settings
+Environments
+Click New environment
+Name it exactly:
+destroy-approval
+
+
+Click Configure environment
+
+
+Step B — Add Required Reviewers
+
+Enable ✅ Required reviewers
+Add:
+
+Yourself
+OR platform team
+
+
+Save
+
+✅ Done. Nothing else needed.
+
+
+
 
 - Reference Link
 - Youtube
