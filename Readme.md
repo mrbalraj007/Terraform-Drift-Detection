@@ -302,8 +302,57 @@ Save
 
 ✅ Done. Nothing else needed.
 
+✅ 4. What the Runtime Flow Looks Like
+▶ Execution flow:
+
+Run workflow
+Terraform destroy plan runs
+Plan artifact uploaded ✅
+Workflow PAUSES
+GitHub shows:
+
+⏸ Waiting for approval: destroy-approval
 
 
+Reviewer clicks Approve
+Terraform destroy executes
+Slack notification sent ✅
+
+
+
+✅ FIX #1 (RECOMMENDED): Add ONE Azure Federated Credential for the Environment
+This is the proper, production-grade fix.
+Step-by-step (5 minutes)
+✅ Step 1: Go to Azure App Registration
+
+Azure Portal → Microsoft Entra ID
+App registrations
+Select the app used by GitHub Actions (AZURE_CLIENT_ID)
+
+
+✅ Step 2: Federated Credentials → Add credential
+Click Federated credentials → Add credential
+Choose:
+
+Federated credential scenario:
+✅ GitHub Actions deploying Azure resources
+
+
+✅ Step 3: Fill in the values EXACTLY
+
+# Azure Federated Credential Configuration
+
+## Details
+
+- **Organization**: `mrbalraj007`
+- **Repository**: `Terraform-Drift-Detection`
+- **Entity Type**: `Environment`
+- **Environment Name**: `destroy-approval`
+- **Credential Name**: `github-destroy-approval`
+
+👉 DO NOT choose Branch
+👉 DO NOT use wildcards
+✅ Save.
 
 - Reference Link
 - Youtube
