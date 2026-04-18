@@ -10,6 +10,12 @@ on:
 
 env:
   TF_VERSION: "1.7.0"
+
+  # --- Azure OIDC (CRITICAL FIX) ---
+  ARM_USE_OIDC: true
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_SKIP_PROVIDER_REGISTRATION: true
 
 permissions:
@@ -26,15 +32,15 @@ jobs:
         working-directory: ./
 
     steps:
-      # -------------------------------
+      # -----------------------------------
       # Checkout
-      # -------------------------------
+      # -----------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------------------
+      # -----------------------------------
       # Destroy confirmation
-      # -------------------------------
+      # -----------------------------------
       - name: Validate destroy confirmation
         run: |
           if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
@@ -42,17 +48,17 @@ jobs:
             exit 1
           fi
 
-      # -------------------------------
+      # -----------------------------------
       # Terraform setup
-      # -------------------------------
+      # -----------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # -------------------------------
+      # -----------------------------------
       # Azure Login (OIDC)
-      # -------------------------------
+      # -----------------------------------
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -60,17 +66,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # -------------------------------
+      # -----------------------------------
       # Terraform Init
-      # -------------------------------
+      # -----------------------------------
       - name: Terraform Init
         run: terraform init -input=false
 
-      # ==========================================================
-      # 1️⃣ PRE-DESTROY REVIEW MODE (PLAN)
-      # ==========================================================
-      - name: Terraform Destroy Plan (Review Mode)
-        id: destroy_plan
+      # ===================================
+      # 1️⃣ PRE-DESTROY PLAN (REVIEW MODE)
+      # ===================================
+      - name: Terraform Destroy Plan
         run: |
           terraform plan -destroy -no-color -out=destroy.tfplan
           terraform show -no-color destroy.tfplan > destroy-plan.txt
@@ -81,15 +86,14 @@ jobs:
           name: terraform-destroy-plan
           path: destroy-plan.txt
 
-      # ==========================================================
+      # ===================================
       # 2️⃣ AZURE TAG VALIDATION
-      # ==========================================================
-      - name: Validate Azure Tags
+      # ===================================
+      - name: Validate Azure Resource Tags
         run: |
           echo "🔍 Validating Azure resource tags..."
 
           REQUIRED_TAGS=("Environment" "Owner" "CostCenter")
-
           RESOURCES=$(az resource list --query "[].id" -o tsv)
 
           for RESOURCE in $RESOURCES; do
@@ -97,50 +101,38 @@ jobs:
 
             for TAG in "${REQUIRED_TAGS[@]}"; do
               if ! echo "$TAGS" | grep -q "$TAG"; then
-                echo "❌ Resource missing required tag '$TAG': $RESOURCE"
+                echo "❌ Resource missing tag '$TAG': $RESOURCE"
                 exit 1
               fi
             done
           done
 
-          echo "✅ All resources have required tags."
+          echo "✅ All required tags are present."
 
-      # ==========================================================
+      # ===================================
       # 3️⃣ TERRAFORM DESTROY
-      # ==========================================================
+      # ===================================
       - name: Terraform Destroy
-        id: destroy
         run: terraform destroy -auto-approve
 
-      # ==========================================================
-      # 4️⃣ SLACK NOTIFICATION
-      # ==========================================================
+      # ===================================
+      # 4️⃣ SLACK NOTIFICATIONS
+      # ===================================
       - name: Notify Slack (Success)
         if: success()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          MESSAGE="✅ *Terraform Destroy Completed Successfully*\n\
-          Repository: ${{ github.repository }}\n\
-          Branch: ${{ github.ref_name }}\n\
-          Triggered by: ${{ github.actor }}\n\
-          Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
           curl -X POST -H "Content-type: application/json" \
-            --data "{\"text\":\"$MESSAGE\"}" \
-            $SLACK_WEBHOOK_URL
+          --data "{\"text\":\"✅ *Terraform Destroy Successful*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nActor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          $SLACK_WEBHOOK_URL
 
       - name: Notify Slack (Failure)
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          MESSAGE="❌ *Terraform Destroy Failed*\n\
-          Repository: ${{ github.repository }}\n\
-          Branch: ${{ github.ref_name }}\n\
-          Triggered by: ${{ github.actor }}\n\
-          Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
           curl -X POST -H "Content-type: application/json" \
-            --data "{\"text\":\"$MESSAGE\"}" \
-            $SLACK_WEBHOOK_URL
+          --data "{\"text\":\"❌ *Terraform Destroy Failed*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nActor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          $SLACK_WEBHOOK_URL
+``
