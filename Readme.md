@@ -165,49 +165,50 @@ Step 5 — Update drift-detection.yml
 
 🟢 Step 1 — Create a Slack Channel
 1. Open Slack
-2. In the left sidebar, click "+" next to "Channels"
-3. Click "Create a channel"
+2. In the left sidebar, click `"+"` next to "`Channels"`
+3. Click "`Create a channel`"
 4. Fill in:
-      Name        : terraform-drift-alerts
-      Description : Terraform drift detection notifications from GitHub Actions
-      Visibility  : Private (recommended) or Public
-5. Click "Create"
+      Name        : `terraform-drift-alerts`
+      Description : `Terraform drift detection notifications from GitHub Actions`
+      Visibility  : `Private (recommended)` or Public
+5. Click "`Create`"
 6. Skip adding members for now (or add your team)
 
 🟢 Step 2 — Create a Slack App & Incoming Webhook
 1. Go to → https://api.slack.com/apps
-2. Click "Create New App"
-3. Choose "From scratch"
+2. Click "`Create New App`"
+3. Choose "`From scratch`"
 4. Fill in:
-      App Name    : Terraform Drift Bot
-      Workspace   : Select your workspace
-5. Click "Create App"
-Now enable Incoming Webhooks:
-6.  In your App settings page, click "Incoming Webhooks" 
-    (left sidebar under "Features")
-7.  Toggle "Activate Incoming Webhooks" → ON
-8.  Scroll down and click "Add New Webhook to Workspace"
-9.  Select the channel → #terraform-drift-alerts
-10. Click "Allow"
+      App Name    : `Terraform Drift Bot`
+      Workspace   : `Select your workspace`
+5. Click "`Create App`"
+Now `enable Incoming Webhooks`:
+6.  In your App settings page, click "`Incoming Webhooks`" 
+    (left sidebar under "`Features`")
+7.  Toggle "`Activate Incoming Webhooks`" → `ON`
+8.  Scroll down and click "`Add New Webhook to Workspace`"
+9.  Select the channel → `#terraform-drift-alerts`
+10. Click "`Allow`"
 11. ⚠️  COPY the Webhook URL shown — it looks like:
         https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
 12. Keep this page open or save the URL safely
 
 🟢 Step 3 — Add Webhook URL to GitHub Secrets
 1. Go to your GitHub repo
-      → mrbalraj007/Terraform-Drift-Detection
-2. Click "Settings"
-3. Click "Secrets and variables" → "Actions"
-4. Click "New repository secret"
+      → `yourname/Terraform-Drift-Detection`
+2. Click "`Settings`"
+3. Click "`Secrets and variables`" → "`Actions`"
+4. Click "`New repository secret`"
 5. Fill in:
-      Name  : SLACK_WEBHOOK_URL
-      Value : https://hooks.slack.com/services/xxxx/xxxx/xxxx
-6. Click "Add secret"
+      Name  : `SLACK_WEBHOOK_URL`
+      Value : `https://hooks.slack.com/services/xxxx/xxxx/xxxx`
+6. Click "`Add secret`"
+
 Your secrets should now look like this:
-✅ AZURE_CLIENT_ID
-✅ AZURE_SUBSCRIPTION_ID
-✅ AZURE_TENANT_ID
-✅ SLACK_WEBHOOK_URL    ← NEW
+- ✅ AZURE_CLIENT_ID
+- ✅ AZURE_SUBSCRIPTION_ID
+- ✅ AZURE_TENANT_ID
+- ✅ SLACK_WEBHOOK_URL    ← NEW
 
 <!-- 
 Step‑by‑step: Create a Slack Incoming Webhook
