@@ -11,10 +11,10 @@ on:
 env:
   TF_VERSION: "1.7.0"
 
-# ✅ CRITICAL — Must have these permissions for OIDC to work
+# ✅ Required for OIDC token generation
 permissions:
   id-token: write
-  contents: read
+  contents: write        # ✅ Changed from read to write (needed for fmt auto-commit)
   pull-requests: write
 
 jobs:
@@ -29,8 +29,11 @@ jobs:
       # ------- Step 1: Checkout Code -------
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}   # ✅ Needed to push fmt fixes back
+          fetch-depth: 0
 
-      # ------- Step 2: ✅ OIDC Login — THIS WAS MISSING -------
+      # ------- Step 2: Azure Login via OIDC -------
       - name: Azure Login via OIDC
         uses: azure/login@v2
         with:
@@ -48,14 +51,20 @@ jobs:
       - name: Terraform Init
         run: terraform init
         env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}       # ✅ No CLIENT_SECRET
+          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"                                # ✅ KEY FLAG
+          ARM_USE_OIDC:        "true"
 
-      # ------- Step 5: Terraform Format -------
+      # ------- Step 5: Terraform Format (auto-fix & commit) -------
       - name: Terraform Format
-        run: terraform fmt -check
+        run: terraform fmt -recursive
+
+      - name: Commit Terraform fmt fixes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (git add -A && git commit -m "ci: auto-fix terraform fmt" && git push)
 
       # ------- Step 6: Terraform Validate -------
       - name: Terraform Validate
@@ -68,6 +77,7 @@ jobs:
 
       # ------- Step 7: Terraform Plan -------
       - name: Terraform Plan
+        id: plan
         run: terraform plan -out=tfplan
         env:
           ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
@@ -75,14 +85,33 @@ jobs:
           ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
           ARM_USE_OIDC:        "true"
 
-      # ------- Step 8: Upload Plan -------
-      - name: Upload Plan
+      # ------- Step 8: Post Plan Output as PR Comment -------
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Plan 📖
+            \`\`\`
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      # ------- Step 9: Upload Plan Artifact -------
+      - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
           path: tfplan
+          retention-days: 5
 
-      # ------- Step 9: Terraform Apply (main branch only) -------
+      # ------- Step 10: Terraform Apply (main branch only) -------
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve tfplan
@@ -91,3 +120,8 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
           ARM_USE_OIDC:        "true"
+
+      # ------- Step 11: Azure Logout -------
+      - name: Azure Logout
+        if: always()     # ✅ Always logout even if job fails
+        run: az logout
