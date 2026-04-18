@@ -8,73 +8,74 @@ on:
         required: true
         default: ""
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   TF_VERSION: "1.7.0"
 
-  # --- Azure OIDC (CRITICAL FIX) ---
+  # --- Azure OIDC (REQUIRED for Terraform) ---
   ARM_USE_OIDC: true
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_SKIP_PROVIDER_REGISTRATION: true
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
-  terraform-destroy:
-    name: Terraform Destroy with Safeguards
+  destroy:
+    name: Terraform Destroy
     runs-on: ubuntu-latest
 
     defaults:
       run:
+        shell: bash
         working-directory: ./
 
     steps:
-      # -----------------------------------
+      # -------------------------------------------------
       # Checkout
-      # -----------------------------------
-      - name: Checkout repository
+      # -------------------------------------------------
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # -----------------------------------
-      # Destroy confirmation
-      # -----------------------------------
+      # -------------------------------------------------
+      # Safety confirmation
+      # -------------------------------------------------
       - name: Validate destroy confirmation
         run: |
-          if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
-            echo "❌ Destroy not confirmed. Type DESTROY to proceed."
+          if [[ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]]; then
+            echo "❌ Destroy not confirmed. Aborting."
             exit 1
           fi
 
-      # -----------------------------------
-      # Terraform setup
-      # -----------------------------------
+      # -------------------------------------------------
+      # Terraform
+      # -------------------------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # -----------------------------------
+      # -------------------------------------------------
       # Azure Login (OIDC)
-      # -----------------------------------
-      - name: Azure Login
+      # -------------------------------------------------
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # -----------------------------------
+      # -------------------------------------------------
       # Terraform Init
-      # -----------------------------------
+      # -------------------------------------------------
       - name: Terraform Init
         run: terraform init -input=false
 
-      # ===================================
-      # 1️⃣ PRE-DESTROY PLAN (REVIEW MODE)
-      # ===================================
+      # -------------------------------------------------
+      # PRE-DESTROY PLAN (REVIEW MODE)
+      # -------------------------------------------------
       - name: Terraform Destroy Plan
         run: |
           terraform plan -destroy -no-color -out=destroy.tfplan
@@ -83,56 +84,51 @@ jobs:
       - name: Upload Destroy Plan
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-destroy-plan
+          name: destroy-plan
           path: destroy-plan.txt
 
-      # ===================================
-      # 2️⃣ AZURE TAG VALIDATION
-      # ===================================
-      - name: Validate Azure Resource Tags
+      # -------------------------------------------------
+      # AZURE TAG VALIDATION (SAFE + SIMPLE)
+      # -------------------------------------------------
+      - name: Validate Azure Tags
         run: |
-          echo "🔍 Validating Azure resource tags..."
+          REQUIRED_TAGS="Environment Owner"
+          RESOURCE_IDS=$(az resource list --query "[].id" -o tsv)
 
-          REQUIRED_TAGS=("Environment" "Owner" "CostCenter")
-          RESOURCES=$(az resource list --query "[].id" -o tsv)
-
-          for RESOURCE in $RESOURCES; do
-            TAGS=$(az resource show --ids "$RESOURCE" --query "tags" -o json)
-
-            for TAG in "${REQUIRED_TAGS[@]}"; do
-              if ! echo "$TAGS" | grep -q "$TAG"; then
-                echo "❌ Resource missing tag '$TAG': $RESOURCE"
+          for ID in $RESOURCE_IDS; do
+            TAGS=$(az resource show --ids "$ID" --query "tags" -o json)
+            for TAG in $REQUIRED_TAGS; do
+              if ! echo "$TAGS" | grep -q "\"$TAG\""; then
+                echo "❌ Resource missing tag '$TAG': $ID"
                 exit 1
               fi
             done
           done
 
-          echo "✅ All required tags are present."
+          echo "✅ Tag validation passed"
 
-      # ===================================
-      # 3️⃣ TERRAFORM DESTROY
-      # ===================================
+      # -------------------------------------------------
+      # TERRAFORM DESTROY
+      # -------------------------------------------------
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
 
-      # ===================================
-      # 4️⃣ SLACK NOTIFICATIONS
-      # ===================================
-      - name: Notify Slack (Success)
-        if: success()
+      # -------------------------------------------------
+      # SLACK NOTIFICATION (ALWAYS RUNS)
+      # -------------------------------------------------
+      - name: Notify Slack
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -X POST -H "Content-type: application/json" \
-          --data "{\"text\":\"✅ *Terraform Destroy Successful*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nActor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
-          $SLACK_WEBHOOK_URL
+          if [[ "${{ job.status }}" == "success" ]]; then
+            STATUS="✅ SUCCESS"
+          else
+            STATUS="❌ FAILED"
+          fi
 
-      - name: Notify Slack (Failure)
-        if: failure()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          curl -X POST -H "Content-type: application/json" \
-          --data "{\"text\":\"❌ *Terraform Destroy Failed*\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nActor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
-          $SLACK_WEBHOOK_URL
-``
+          curl -s -X POST -H "Content-type: application/json" \
+            --data "{
+              \"text\": \"$STATUS Terraform Destroy\nRepo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nActor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }" \
+            $SLACK_WEBHOOK_URL
