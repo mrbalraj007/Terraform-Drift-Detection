@@ -25,18 +25,18 @@ resource "azurerm_resource_group" "tfstate" {
 
 # --- Storage Account (equivalent to S3 bucket) ---
 resource "azurerm_storage_account" "tfstate" {
-  name                            = var.storage_account_name   # must be globally unique, lowercase, 3-24 chars
+  name                            = var.storage_account_name # must be globally unique, lowercase, 3-24 chars
   resource_group_name             = azurerm_resource_group.tfstate.name
   location                        = azurerm_resource_group.tfstate.location
   account_tier                    = "Standard"
-  account_replication_type        = "GRS"   # Geo-redundant for safety
-  allow_nested_items_to_be_public = false   # Block all public access
+  account_replication_type        = "LRS" # Geo-redundant for safety
+  allow_nested_items_to_be_public = false # Block all public access
 
   blob_properties {
-    versioning_enabled = true   # Keeps history of state files
+    versioning_enabled = true # Keeps history of state files
 
     delete_retention_policy {
-      days = 30   # Soft delete for 30 days
+      days = 30 # Soft delete for 30 days
     }
   }
 
@@ -50,7 +50,7 @@ resource "azurerm_storage_account" "tfstate" {
 resource "azurerm_storage_container" "tfstate" {
   name                  = var.container_name
   storage_account_name  = azurerm_storage_account.tfstate.name
-  container_access_type = "private"   # No public access
+  container_access_type = "private" # No public access
 }
 
 # --- Lock with Azure AD (prevents concurrent state writes) ---

@@ -13,7 +13,7 @@ variable "location" {
 variable "storage_account_name" {
   description = "Globally unique storage account name (lowercase, 3-24 chars)"
   type        = string
-  default     = "tfstatemyproject001"   # ⚠️ Change this to something unique
+  default     = "tfstatemyproject001" # ⚠️ Change this to something unique
 }
 
 variable "container_name" {
