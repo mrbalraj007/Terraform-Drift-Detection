@@ -103,9 +103,10 @@ az role assignment create \
 ├── variables.tf         # ✅ NEW — All configurable values
 ├── outputs.tf           # ✅ NEW — Useful outputs
 ├── providers.tf         # ✅ NEW — AzureRM provider
-└── .github/
-    └── workflows/
-        └── terraform.yml
+.github/
+  workflows/
+    ├── terraform.yml          # ✅ CI/CD — Plan on PR, Apply on merge
+    └── drift-detection.yml    # ✅ NEW — Nightly drift check + GitHub Issues
 ```
 
 # Step 1 — Bootstrap the backend (run once, locally)
