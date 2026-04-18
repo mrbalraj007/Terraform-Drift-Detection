@@ -122,3 +122,97 @@ terraform output -raw storage_account_key
 # Step 3 — Push your infra code to GitHub
 # → GitHub Actions will automatically run Plan on PR and Apply on merge to main
 
+<!-- 📋 Overview of What We'll DoStep 1 — Create a Teams Channel
+Step 2 — Add Incoming Webhook to that Channel
+Step 3 — Copy the Webhook URL
+Step 4 — Add Webhook URL to GitHub Secrets
+Step 5 — Update drift-detection.yml🔵 Step 1 — Create a Channel in Microsoft Teams1. Open Microsoft Teams
+2. Go to your Team (or create one)
+3. Click "..." next to the Team name
+4. Select "Add channel"
+5. Fill in:
+      Channel name  : terraform-drift-alerts
+      Description   : Terraform drift detection notifications
+      Privacy       : Standard
+6. Click "Add"🔵 Step 2 — Add Incoming Webhook Connector1. Go to the newly created channel "terraform-drift-alerts"
+2. Click "..." next to the channel name
+3. Click "Connectors"  (or "Manage channel" → "Connectors")
+4. Search for "Incoming Webhook"
+5. Click "Add" → "Add" again to confirm
+6. Give it a name:  Terraform Drift Bot
+7. Optionally upload an icon (Terraform logo)
+8. Click "Create"
+9. ⚠️  COPY the Webhook URL shown — you won't see it again!
+      It looks like:
+      https://yourorg.webhook.office.com/webhookb2/xxxx/IncomingWebhook/xxxx
+10. Click "Done"🔵 Step 3 — Add Webhook URL to GitHub Secrets1. Go to your GitHub repo → mrbalraj007/Terraform-Drift-Detection
+2. Settings → Secrets and variables → Actions
+3. Click "New repository secret"
+4. Add:
+      Name  : TEAMS_WEBHOOK_URL
+      Value : <paste the webhook URL you copied>
+5. Click "Add secret"Your secrets should now look like this:✅ AZURE_CLIENT_ID
+✅ AZURE_SUBSCRIPTION_ID
+✅ AZURE_TENANT_ID
+✅ TEAMS_WEBHOOK_URL   ← NEW -->
+
+
+Step 1 — Create a Slack Channel
+Step 2 — Create a Slack App & Incoming Webhook
+Step 3 — Copy the Webhook URL
+Step 4 — Add Webhook URL to GitHub Secrets
+Step 5 — Update drift-detection.yml
+
+🟢 Step 1 — Create a Slack Channel
+1. Open Slack
+2. In the left sidebar, click "+" next to "Channels"
+3. Click "Create a channel"
+4. Fill in:
+      Name        : terraform-drift-alerts
+      Description : Terraform drift detection notifications from GitHub Actions
+      Visibility  : Private (recommended) or Public
+5. Click "Create"
+6. Skip adding members for now (or add your team)
+
+🟢 Step 2 — Create a Slack App & Incoming Webhook
+1. Go to → https://api.slack.com/apps
+2. Click "Create New App"
+3. Choose "From scratch"
+4. Fill in:
+      App Name    : Terraform Drift Bot
+      Workspace   : Select your workspace
+5. Click "Create App"
+Now enable Incoming Webhooks:
+6.  In your App settings page, click "Incoming Webhooks" 
+    (left sidebar under "Features")
+7.  Toggle "Activate Incoming Webhooks" → ON
+8.  Scroll down and click "Add New Webhook to Workspace"
+9.  Select the channel → #terraform-drift-alerts
+10. Click "Allow"
+11. ⚠️  COPY the Webhook URL shown — it looks like:
+        https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+12. Keep this page open or save the URL safely
+
+🟢 Step 3 — Add Webhook URL to GitHub Secrets
+1. Go to your GitHub repo
+      → mrbalraj007/Terraform-Drift-Detection
+2. Click "Settings"
+3. Click "Secrets and variables" → "Actions"
+4. Click "New repository secret"
+5. Fill in:
+      Name  : SLACK_WEBHOOK_URL
+      Value : https://hooks.slack.com/services/xxxx/xxxx/xxxx
+6. Click "Add secret"
+Your secrets should now look like this:
+✅ AZURE_CLIENT_ID
+✅ AZURE_SUBSCRIPTION_ID
+✅ AZURE_TENANT_ID
+✅ SLACK_WEBHOOK_URL    ← NEW
+
+
+
+
+
+- Reference Link
+- Youtube
+- [ Microsoft Teams Connector](https://www.youtube.com/watch?v=sX3nliVH8e4&list=PLJcpyd04zn7q-TF17zwoc3IZNUB8skKD2&index=5)

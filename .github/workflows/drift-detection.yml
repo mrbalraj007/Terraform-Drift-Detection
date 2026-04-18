@@ -59,7 +59,7 @@ jobs:
           echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
 
           if [ $exitcode -eq 1 ]; then
-            echo "❌ Terraform Plan Failed!"
+            echo "Terraform Plan Failed!"
             exit 1
           else
             exit 0
@@ -86,7 +86,7 @@ jobs:
 
           delimiter="$(openssl rand -hex 8)"
           echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
-          echo "## 🔍 Terraform Drift Detection Report" >> $GITHUB_OUTPUT
+          echo "## Terraform Drift Detection Report" >> $GITHUB_OUTPUT
           echo "**Repo:** \`${{ github.repository }}\`" >> $GITHUB_OUTPUT
           echo "**Run:** \`${{ github.run_id }}\`" >> $GITHUB_OUTPUT
           echo "**Triggered by:** \`${{ github.event_name }}\`" >> $GITHUB_OUTPUT
@@ -105,7 +105,7 @@ jobs:
           SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
         run: echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
 
-      # ------- Step 9: Open/Update Issue if Drift Detected -------
+      # ------- Step 9: Open/Update GitHub Issue if Drift Detected -------
       - name: Publish Drift Report — Create or Update Issue
         if: steps.tf-plan.outputs.exitcode == 2
         uses: actions/github-script@v7
@@ -150,7 +150,145 @@ jobs:
               });
             }
 
-      # ------- Step 10: Close Issue if No Drift -------
+      # ------- Step 10: ✅ Notify Slack — Drift Detected -------
+      - name: Notify Slack — Drift Detected
+        if: steps.tf-plan.outputs.exitcode == 2
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "attachments": [
+              {
+                "color": "#FF0000",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": ":warning:  Terraform Drift Detected!",
+                      "emoji": true
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Repository:*\n`${{ github.repository }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Branch:*\n`${{ github.ref_name }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Triggered by:*\n`${{ github.event_name }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Run ID:*\n`${{ github.run_id }}`"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*Status:* :red_circle:  Resources have drifted from Terraform state. Immediate action required!"
+                    }
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Drift Report",
+                          "emoji": true
+                        },
+                        "style": "danger",
+                        "url": "'"$RUN_URL"'"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }'
+
+      # ------- Step 11: ✅ Notify Slack — All Clean -------
+      - name: Notify Slack — All Clean
+        if: steps.tf-plan.outputs.exitcode == 0
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "attachments": [
+              {
+                "color": "#00C853",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": ":white_check_mark:  Terraform — No Drift Detected",
+                      "emoji": true
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Repository:*\n`${{ github.repository }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Branch:*\n`${{ github.ref_name }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Triggered by:*\n`${{ github.event_name }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Run ID:*\n`${{ github.run_id }}`"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*Status:* :large_green_circle:  All resources match Terraform state. Everything looks good!"
+                    }
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Run Details",
+                          "emoji": true
+                        },
+                        "style": "primary",
+                        "url": "'"$RUN_URL"'"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }'
+
+      # ------- Step 12: Close Issue if No Drift -------
       - name: Resolve Drift Report — Close Issue if Clean
         if: steps.tf-plan.outputs.exitcode == 0
         uses: actions/github-script@v7
@@ -181,14 +319,14 @@ jobs:
               console.log('No drift detected and no open issues — all clean!');
             }
 
-      # ------- Step 11: Azure Logout -------
+      # ------- Step 13: Azure Logout -------
       - name: Azure Logout
         if: always()
         run: az logout
 
-      # ------- Step 12: Fail Workflow if Drift Found -------
+      # ------- Step 14: Fail Workflow if Drift Found -------
       - name: Fail on Drift Detected
         if: steps.tf-plan.outputs.exitcode == 2
         run: |
-          echo "Drift detected! Check the GitHub issue for details."
+          echo "Drift detected! Check the GitHub issue and Slack for details."
           exit 1
