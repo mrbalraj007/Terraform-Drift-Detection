@@ -19,7 +19,7 @@ variable "nsg_name" {
 variable "allowed_ssh_source_ip" {
   description = "Source IP allowed for SSH access. Replace with your actual IP."
   type        = string
-  default     = "0.0.0.0/0"   # ⚠️ Restrict this to your IP in production
+  default     = "0.0.0.0/0" # ⚠️ Restrict this to your IP in production
 }
 
 variable "tags" {
