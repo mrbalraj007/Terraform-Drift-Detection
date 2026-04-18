@@ -209,8 +209,56 @@ Your secrets should now look like this:
 ✅ AZURE_TENANT_ID
 ✅ SLACK_WEBHOOK_URL    ← NEW
 
+<!-- 
+Step‑by‑step: Create a Slack Incoming Webhook
+Step 2.1: Create a Slack App
+
+Go to:
+👉 https://api.slack.com/apps
+Click Create New App
+Choose From scratch
+App name:
+Terraform Drift Detector
 
 
+Choose your Slack workspace
+Click Create App
+
+
+Step 2.2: Enable Incoming Webhooks
+
+Inside your new Slack app:
+
+Go to Incoming Webhooks
+
+
+Toggle Activate Incoming Webhooks → ✅ ON
+Click Add New Webhook to Workspace
+Choose the Slack channel where alerts should go (e.g. #terraform-alerts)
+Click Allow
+
+✅ Slack will generate a Webhook URL, for example:
+https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXX
+
+⚠️ This is a secret. Never commit it to Git.
+
+3. Step‑by‑step: Add Slack webhook to GitHub Actions
+Step 3.1: Store the webhook securely in GitHub
+
+Go to your GitHub repository
+Settings → Secrets and variables → Actions
+Click New repository secret
+Add:
+
+Name:
+SLACK_WEBHOOK_URL
+
+
+Value:
+(Paste the Slack webhook URL)
+
+
+Save ✅ -->
 
 
 - Reference Link
