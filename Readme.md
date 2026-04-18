@@ -91,3 +91,17 @@ az role assignment create \
   --assignee-object-id $SP_ID \
   --assignee-principal-type ServicePrincipal
 ```
+
+# Step 1 — Bootstrap the backend (run once, locally)
+```sh
+cd bootstrap/
+terraform init
+terraform apply
+```
+# Step 2 — Get the storage account key and add to GitHub secrets (optional)
+```sh
+terraform output -raw storage_account_key
+```
+# Step 3 — Push your infra code to GitHub
+# → GitHub Actions will automatically run Plan on PR and Apply on merge to main
+
