@@ -354,6 +354,29 @@ Federated credential scenario:
 👉 DO NOT use wildcards
 ✅ Save.
 
+✅ Result After Fix
+After approval:
+
+Azure login ✅
+Terraform init ✅
+Terraform destroy ✅
+Slack notification ✅
+
+No pipeline changes needed.
+No secrets added.
+No hacks.
+
+- Run the pipeline to destroy the pipeline.
+- now, you need to delete the backend as well.
+
+```bash
+cd bootstrap/
+terraform destroy --auto-approve
+```
+- download the [sh file](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
+- Now, [Delete the OIDC connector](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) as well.
+
+---
 - Reference Link
 - Youtube
 - [ Microsoft Teams Connector](https://www.youtube.com/watch?v=sX3nliVH8e4&list=PLJcpyd04zn7q-TF17zwoc3IZNUB8skKD2&index=5)
