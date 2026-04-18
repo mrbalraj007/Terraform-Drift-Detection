@@ -1,5 +1,7 @@
 Get Subscription ID
-bashaz account show --query id -o tsv
+```bash
+az account show --query id -o tsv
+```
 
 Other useful variations
 ```bash
