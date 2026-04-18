@@ -105,3 +105,14 @@ terraform output -raw storage_account_key
 # Step 3 — Push your infra code to GitHub
 # → GitHub Actions will automatically run Plan on PR and Apply on merge to main
 
+```sh
+.
+├── backend.tf           # ✅ Already exists (unchanged)
+├── main.tf              # ✅ NEW — NSG + Resource Group
+├── variables.tf         # ✅ NEW — All configurable values
+├── outputs.tf           # ✅ NEW — Useful outputs
+├── providers.tf         # ✅ NEW — AzureRM provider
+└── .github/
+    └── workflows/
+        └── terraform.yml
+```
