@@ -1,3 +1,9 @@
+## Prerquisit:
+
+- Configure [OIDC connection](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) for Azure password less authentication.
+- Download [OIDC setup file](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
+- Download [FICS.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
+
 Get Subscription ID
 ```bash
 az account show --query id -o tsv
@@ -91,6 +97,19 @@ az role assignment create \
   --assignee-object-id $SP_ID \
   --assignee-principal-type ServicePrincipal
 ```
+Run the following command to configure OIDC
+```sh
+APP_NAME — the Azure AD application name
+REPO — GitHub repo in the form ORG/REPO
+
+Example:
+
+# Dru Run
+ ./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC --dry-run
+
+ #Normal Run
+ ./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC
+```
 
 ## Project Structure
 ```sh
@@ -156,14 +175,14 @@ Step 5 — Update drift-detection.yml🔵 Step 1 — Create a Channel in Microso
 ✅ AZURE_TENANT_ID
 ✅ TEAMS_WEBHOOK_URL   ← NEW -->
 
+# Step 4 — Add Slack for Notification
+Step 4.1 — Create a Slack Channel
+Step 4.2 — Create a Slack App & Incoming Webhook
+Step 4.3 — Copy the Webhook URL
+Step 4.4 — Add Webhook URL to GitHub Secrets
+Step 4.5 — Update drift-detection.yml
 
-Step 1 — Create a Slack Channel
-Step 2 — Create a Slack App & Incoming Webhook
-Step 3 — Copy the Webhook URL
-Step 4 — Add Webhook URL to GitHub Secrets
-Step 5 — Update drift-detection.yml
-
-🟢 Step 1 — Create a Slack Channel
+🟢 Step 4.1 — Create a Slack Channel
 1. Open Slack
 2. In the left sidebar, click `"+"` next to "`Channels"`
 3. Click "`Create a channel`"
@@ -174,7 +193,7 @@ Step 5 — Update drift-detection.yml
 5. Click "`Create`"
 6. Skip adding members for now (or add your team)
 
-🟢 Step 2 — Create a Slack App & Incoming Webhook
+🟢 Step 4.2 — Create a Slack App & Incoming Webhook
 1. Go to → https://api.slack.com/apps
 2. Click "`Create New App`"
 3. Choose "`From scratch`"
@@ -193,7 +212,7 @@ Now `enable Incoming Webhooks`:
         https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
 12. Keep this page open or save the URL safely
 
-🟢 Step 3 — Add Webhook URL to GitHub Secrets
+🟢 Step 4.3 — Add Webhook URL to GitHub Secrets
 1. Go to your GitHub repo
       → `yourname/Terraform-Drift-Detection`
 2. Click "`Settings`"
@@ -261,122 +280,116 @@ Value:
 
 Save ✅ -->
 
-✅ 1. How Manual Approval Works in GitHub Actions
-GitHub supports real approval gates via Environments.
-✅ When a job references an environment:
+# Step 5 — Add manual approval before destroy
 
-Workflow pauses
-Approval is required from configured reviewers
-Only then does destroy proceed
+✅ 5.1. How Manual Approval Works in GitHub Actions
+
+GitHub supports real approval gates via Environments.
+- ✅ When a job references an environment:
+
+  - Workflow pauses
+  - Approval is required from configured reviewers
+  - Only then does destroy proceed
 
 This is:
 
-Auditable
-Native
-Industry best practice
+  - Auditable
+  - Native
+  - Industry best practice
 
 
-✅ 2. One‑Time Setup in GitHub UI (MANDATORY)
-Step A — Create an Environment
+✅ 5.2. One‑Time Setup in GitHub UI (MANDATORY)
 
-Repo → Settings
-Environments
-Click New environment
-Name it exactly:
-destroy-approval
+**Step A** — Create an Environment
 
-
-Click Configure environment
+1. Repo → Settings
+2. Environments
+3. Click New environment
+4. Name it exactly: `destroy-approval`
+5. Click Configure environment
 
 
-Step B — Add Required Reviewers
+**Step B** — Add Required Reviewers
 
-Enable ✅ Required reviewers
-Add:
+1. Enable ✅ Required reviewers
+2. Add:
+   - Yourself
+   - OR platform team
 
-Yourself
-OR platform team
-
-
-Save
+3. Save
 
 ✅ Done. Nothing else needed.
 
-✅ 4. What the Runtime Flow Looks Like
-▶ Execution flow:
+✅ 5.3. What the Runtime Flow Looks Like
 
-Run workflow
-Terraform destroy plan runs
-Plan artifact uploaded ✅
-Workflow PAUSES
-GitHub shows:
+▶ **Execution flow**:
 
-⏸ Waiting for approval: destroy-approval
+1. Run workflow
+2. Terraform destroy plan runs
+3. Plan artifact uploaded ✅
+4. Workflow PAUSES
+5. GitHub shows: `⏸ Waiting for approval: destroy-approval`
+6. Reviewer clicks Approve
+7. Terraform destroy executes
+8. Slack notification sent ✅
 
+> [!NOTE]
+> **Troubleshooting**:
+>  I was getting an error message so I follow below approach to get it fixed.
 
-Reviewer clicks Approve
-Terraform destroy executes
-Slack notification sent ✅
+- ✅ Add ONE Azure Federated Credential for the Environment
 
+- ✅ Step 1: Go to Azure App Registration
 
-
-✅ FIX #1 (RECOMMENDED): Add ONE Azure Federated Credential for the Environment
-This is the proper, production-grade fix.
-Step-by-step (5 minutes)
-✅ Step 1: Go to Azure App Registration
-
-Azure Portal → Microsoft Entra ID
-App registrations
-Select the app used by GitHub Actions (AZURE_CLIENT_ID)
+  - Azure Portal → Microsoft Entra ID
+  - App registrations
+  - Select the app used by GitHub Actions (AZURE_CLIENT_ID)
 
 
 ✅ Step 2: Federated Credentials → Add credential
-Click Federated credentials → Add credential
-Choose:
-
-Federated credential scenario:
-✅ GitHub Actions deploying Azure resources
+  - Click Federated credentials → Add credential
+  - Choose:
+  - Federated credential scenario:
+      - ✅ GitHub Actions deploying Azure resources
 
 
 ✅ Step 3: Fill in the values EXACTLY
 
-# Azure Federated Credential Configuration
+- following is the details
 
-## Details
+    - **Organization**: `YourName`
+    - **Repository**: `Terraform-Drift-Detection`
+    - **Entity Type**: `Environment`
+    - **Environment Name**: `destroy-approval`
+    - **Credential Name**: `github-destroy-approval`
 
-- **Organization**: `mrbalraj007`
-- **Repository**: `Terraform-Drift-Detection`
-- **Entity Type**: `Environment`
-- **Environment Name**: `destroy-approval`
-- **Credential Name**: `github-destroy-approval`
+- 👉 DO NOT choose Branch, 
+- 👉 DO NOT use wildcards
+- ✅ Save.
 
-👉 DO NOT choose Branch
-👉 DO NOT use wildcards
-✅ Save.
-
-✅ Result After Fix
-After approval:
-
-Azure login ✅
-Terraform init ✅
-Terraform destroy ✅
-Slack notification ✅
-
-No pipeline changes needed.
-No secrets added.
-No hacks.
-
-- Run the pipeline to destroy the pipeline.
+- ✅ Result After Fix
+  
+      - After approval:
+            - Azure login ✅
+            - Terraform init ✅
+            - Terraform destroy ✅
+            - Slack notification ✅
+            - 
+            - No pipeline changes needed.
+            - No secrets added.
+            - No hacks.
+      
+- Run the pipeline to destroy environment.
 - now, you need to delete the backend as well.
 
 ```bash
 cd bootstrap/
 terraform destroy --auto-approve
 ```
-- download the [sh file](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
+- Download the [sh file](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
 - Now, [Delete the OIDC connector](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) as well.
 
 ---
 - Reference Link
 - Youtube
-- [ Microsoft Teams Connector](https://www.youtube.com/watch?v=sX3nliVH8e4&list=PLJcpyd04zn7q-TF17zwoc3IZNUB8skKD2&index=5)
+<!-- - [ How to configure Microsoft Teams Connector](https://www.youtube.com/watch?v=sX3nliVH8e4&list=PLJcpyd04zn7q-TF17zwoc3IZNUB8skKD2&index=5) -->
