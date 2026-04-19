@@ -65,8 +65,8 @@ Run the following steps in Git Bash (or any terminal with Azure CLI installed).
 ### Step 1.1 — Set Your Known Values
 
 ```bash
-SP_ID="a778aa7b-f9e2XXXX"   # Service Principal Object ID
-SUB_ID="2fc598a4-XXXX"      # Subscription ID
+SP_ID="a778aa7b-f9e2XXXX"  # Finding SUB_ID (Subscription ID)
+SUB_ID="2fc598a4-XXXX"     # Finding SP_ID (Service Principal Object ID)
 ```
 
 **Where to find these values in the Azure Portal:**
