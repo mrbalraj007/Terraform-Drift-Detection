@@ -1,82 +1,108 @@
-## Prerquisit:
+# 🚀 Terraform Drift Detection on Azure — Complete Setup Guide
+### GitHub Actions + OIDC + Slack Notifications + Manual Approval Gates
 
-- Configure [OIDC connection](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) for Azure password less authentication.
-- Download [OIDC setup file](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
-- Download [FICS.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
+> **A production-grade guide** to deploy Terraform infrastructure on Azure using passwordless OIDC authentication, automated drift detection, Slack alerts, and safe destroy workflows with manual approval gates.
 
-Get Subscription ID
+---
+
+## 📋 Table of Contents
+
+| # | Section | Description |
+|---|---------|-------------|
+| 0 | [Prerequisites](#prerequisites) | OIDC setup, required files, Azure CLI commands |
+| 1 | [Role Assignment (CLI)](#step-1--manually-assign-the-contributor-role-cli) | Set variables, check & assign Contributor role |
+| 2 | [Project Structure](#project-structure) | Folder layout and key files explained |
+| 3 | [Bootstrap the Backend](#step-2--bootstrap-the-backend-run-once-locally) | One-time Terraform backend setup |
+| 4 | [Slack Notifications](#step-4--add-slack-notifications) | Create app, webhook, and GitHub secret |
+| 5 | [Manual Approval Gate](#step-5--add-manual-approval-before-destroy) | Environment-based approval before `terraform destroy` |
+| 6 | [Teardown](#teardown) | Destroy infra, backend, and OIDC connector |
+
+---
+
+## Prerequisites
+
+Before anything else, get these three things in place:
+
+- 🔗 Configure an [OIDC connection](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) for passwordless Azure authentication
+- 📥 Download the [OIDC setup script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
+- 📥 Download [fics.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
+
+### Useful Azure CLI Commands
+
+**Get your Subscription ID:**
 ```bash
 az account show --query id -o tsv
 ```
 
-Other useful variations
+**Get Subscription ID + Name together:**
 ```bash
-# Get Subscription ID + Name together
 az account show --query '[id,name]' -o tsv
 ```
-# Get all subscriptions in table format
 
+**List all subscriptions in table format:**
 ```bash
 az account list --query '[].{Name:name, ID:id, State:state}' -o table
 ```
-# Get only the active/default subscription
+
+**Get the active/default subscription as JSON:**
 ```bash
 az account show --query '{SubscriptionID:id, Name:name}' -o json
 ```
-<!-- Get SP_ID by App Name
-```bash
-az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" --query "[].id" -o tsv
-```
-Get SP_ID by App ID
-```bash
-az ad sp list --filter "appId eq 'ff4d5216-a213-4c7e-8715-e1fa9da58da3'" --query "[].id" -o tsv
-``` -->
 
-Get SP_ID + Subscription+ APP_ID together
+**Get SP_ID, APP_ID, and SUB_ID in one shot:**
 ```bash
 az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
   --query "[].{SP_ID:id, APP_ID:appId}" -o table && \
   az account show --query "{SUB_ID:id}" -o table
 ```
-## Manually Assign the Role (CLI)
 
-Run the following in Git Bash on your Windows Server 2025:
+---
 
-**Step 1 — Set your known values**
+## Step 1 — Manually Assign the Contributor Role (CLI)
+
+Run the following steps in Git Bash (or any terminal with Azure CLI installed).
+
+### Step 1.1 — Set Your Known Values
 
 ```bash
-
-SP_ID="a778aa7b-f9e2XXXX"  # Finding SUB_ID (Subscription ID)
-SUB_ID="2fc598a4-XXXX"     # Finding SP_ID (Service Principal Object ID)
+SP_ID="a778aa7b-f9e2XXXX"   # Service Principal Object ID
+SUB_ID="2fc598a4-XXXX"      # Subscription ID
 ```
-```sh
+
+**Where to find these values in the Azure Portal:**
+
+```
 For SUB_ID:
-portal.azure.com
-  └── Subscriptions
-        └── DevOpsLearning
-              └── Overview → Subscription ID ✅
+  portal.azure.com
+    └── Subscriptions
+          └── DevOpsLearning
+                └── Overview → Subscription ID ✅
 
 For SP_ID:
-portal.azure.com
-  └── Enterprise Applications
-        └── Search: demo-github-azure-oidc-connection
-              └── Overview → Object ID ✅
+  portal.azure.com
+    └── Enterprise Applications
+          └── Search: demo-github-azure-oidc-connection
+                └── Overview → Object ID ✅
 
-        OR
+      OR
 
-  └── App Registrations → All applications
-        └── demo-github-azure-oidc-connection
-              └── Overview → Managed application in local directory
-                    └── Object ID (SP_ID) ✅
+    └── App Registrations → All applications
+          └── demo-github-azure-oidc-connection
+                └── Overview → Managed application in local directory
+                      └── Object ID (SP_ID) ✅
 ```
 
-| ID | Where to Find | Portal Section |
-|----|--------------|----------------|
-| `SUB_ID` | Subscriptions → Your subscription → Overview | Subscription ID field |
-| `APP_ID` | App Registrations → Your app → Overview | Application (client) ID field |
-| `SP_ID` | Enterprise Applications → Your app → Overview | Object ID field |
+**Quick reference table:**
 
-**Step 2 — Check if a role assignment already exists**
+| ID | Portal Location | Field Name |
+|----|-----------------|------------|
+| `SUB_ID` | Subscriptions → Your Subscription → Overview | Subscription ID |
+| `APP_ID` | App Registrations → Your App → Overview | Application (client) ID |
+| `SP_ID` | Enterprise Applications → Your App → Overview | Object ID |
+
+---
+
+### Step 1.2 — Check if a Role Assignment Already Exists
 
 ```bash
 az role assignment list \
@@ -86,9 +112,11 @@ az role assignment list \
   -o table
 ```
 
-If the output is empty, the role is missing — proceed to Step 3.
+> If the output is **empty**, the role is missing — proceed to Step 1.3.
 
-**Step 3 — Assign the Contributor role**
+---
+
+### Step 1.3 — Assign the Contributor Role
 
 ```bash
 az role assignment create \
@@ -97,22 +125,27 @@ az role assignment create \
   --assignee-object-id $SP_ID \
   --assignee-principal-type ServicePrincipal
 ```
-Run the following command to configure OIDC
-```sh
-APP_NAME — the Azure AD application name
-REPO — GitHub repo in the form ORG/REPO
 
-Example:
+---
 
-# Dru Run
- ./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC --dry-run
+### Step 1.4 — Configure OIDC (Run the Script)
 
- #Normal Run
- ./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC
+```bash
+# Dry run first — always a good idea
+./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC --dry-run
+
+# Normal run
+./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC
 ```
 
+- `APP_NAME` — the Azure AD application name
+- `REPO` — your GitHub repo in `ORG/REPO` format
+
+---
+
 ## Project Structure
-```sh
+
+```
 ├── bootstrap/
 │   ├── main.tf          # Creates the storage backend resources
 │   ├── outputs.tf
@@ -122,274 +155,213 @@ Example:
 ├── variables.tf         # ✅ NEW — All configurable values
 ├── outputs.tf           # ✅ NEW — Useful outputs
 ├── providers.tf         # ✅ NEW — AzureRM provider
-.github/
-  workflows/
-    ├── terraform.yml          # ✅ CI/CD — Plan on PR, Apply on merge
-    └── drift-detection.yml    # ✅ NEW — Nightly drift check + GitHub Issues
+└── .github/
+    └── workflows/
+        ├── terraform.yml          # ✅ CI/CD — Plan on PR, Apply on merge
+        └── drift-detection.yml    # ✅ NEW — Nightly drift check + GitHub Issues
 ```
 
-# Step 1 — Bootstrap the backend (run once, locally)
-```sh
+---
+
+## Step 2 — Bootstrap the Backend *(Run Once, Locally)*
+
+```bash
 cd bootstrap/
 terraform init
 terraform apply
 ```
-# Step 2 — Get the storage account key and add to GitHub secrets (optional)
-```sh
+
+### Step 2.1 — Get the Storage Account Key *(Optional)*
+
+If you need to add the storage key to GitHub Secrets:
+
+```bash
 terraform output -raw storage_account_key
 ```
-# Step 3 — Push your infra code to GitHub
-# → GitHub Actions will automatically run Plan on PR and Apply on merge to main
 
-<!-- 📋 Overview of What We'll DoStep 1 — Create a Teams Channel
-Step 2 — Add Incoming Webhook to that Channel
-Step 3 — Copy the Webhook URL
-Step 4 — Add Webhook URL to GitHub Secrets
-Step 5 — Update drift-detection.yml🔵 Step 1 — Create a Channel in Microsoft Teams1. Open Microsoft Teams
-2. Go to your Team (or create one)
-3. Click "..." next to the Team name
-4. Select "Add channel"
-5. Fill in:
-      Channel name  : terraform-drift-alerts
-      Description   : Terraform drift detection notifications
-      Privacy       : Standard
-6. Click "Add"🔵 Step 2 — Add Incoming Webhook Connector1. Go to the newly created channel "terraform-drift-alerts"
-2. Click "..." next to the channel name
-3. Click "Connectors"  (or "Manage channel" → "Connectors")
-4. Search for "Incoming Webhook"
-5. Click "Add" → "Add" again to confirm
-6. Give it a name:  Terraform Drift Bot
-7. Optionally upload an icon (Terraform logo)
-8. Click "Create"
-9. ⚠️  COPY the Webhook URL shown — you won't see it again!
-      It looks like:
-      https://yourorg.webhook.office.com/webhookb2/xxxx/IncomingWebhook/xxxx
-10. Click "Done"🔵 Step 3 — Add Webhook URL to GitHub Secrets1. Go to your GitHub repo → mrbalraj007/Terraform-Drift-Detection
-2. Settings → Secrets and variables → Actions
-3. Click "New repository secret"
-4. Add:
-      Name  : TEAMS_WEBHOOK_URL
-      Value : <paste the webhook URL you copied>
-5. Click "Add secret"Your secrets should now look like this:✅ AZURE_CLIENT_ID
+### Step 2.2 — Push Infra Code to GitHub
+
+Once you push to GitHub, Actions will automatically:
+- **Run `terraform plan`** on every Pull Request
+- **Run `terraform apply`** on every merge to `main`
+
+---
+
+## Step 4 — Add Slack Notifications
+
+### Step 4.1 — Create a Slack Channel
+
+1. Open Slack and click **`+`** next to **Channels** in the left sidebar
+2. Click **Create a channel**
+3. Fill in the details:
+   - **Name:** `terraform-drift-alerts`
+   - **Description:** `Terraform drift detection notifications from GitHub Actions`
+   - **Visibility:** Private *(recommended)* or Public
+4. Click **Create** and optionally add your team members
+
+---
+
+### Step 4.2 — Create a Slack App & Incoming Webhook
+
+1. Go to → [https://api.slack.com/apps](https://api.slack.com/apps)
+2. Click **Create New App** → choose **From scratch**
+3. Fill in:
+   - **App Name:** `Terraform Drift Bot`
+   - **Workspace:** Select your workspace
+4. Click **Create App**
+
+**Now enable Incoming Webhooks:**
+
+5. In the App settings page, click **Incoming Webhooks** (left sidebar under **Features**)
+6. Toggle **Activate Incoming Webhooks** → `ON`
+7. Scroll down and click **Add New Webhook to Workspace**
+8. Select the channel → `#terraform-drift-alerts`
+9. Click **Allow**
+
+> ⚠️ **Copy the Webhook URL shown — it looks like:**
+> ```
+> https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+> ```
+> Save this somewhere safe — you'll need it in the next step.
+
+---
+
+### Step 4.3 — Add the Webhook URL to GitHub Secrets
+
+1. Go to your GitHub repo → **Settings**
+2. Click **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Fill in:
+   - **Name:** `SLACK_WEBHOOK_URL`
+   - **Value:** `https://hooks.slack.com/services/xxxx/xxxx/xxxx`
+5. Click **Add secret**
+
+Your repo secrets should now look like this:
+
+```
+✅ AZURE_CLIENT_ID
 ✅ AZURE_SUBSCRIPTION_ID
 ✅ AZURE_TENANT_ID
-✅ TEAMS_WEBHOOK_URL   ← NEW -->
+✅ SLACK_WEBHOOK_URL    ← NEW
+```
 
-# Step 4 — Add Slack for Notification
-Step 4.1 — Create a Slack Channel
-Step 4.2 — Create a Slack App & Incoming Webhook
-Step 4.3 — Copy the Webhook URL
-Step 4.4 — Add Webhook URL to GitHub Secrets
-Step 4.5 — Update drift-detection.yml
+---
 
-🟢 Step 4.1 — Create a Slack Channel
-1. Open Slack
-2. In the left sidebar, click `"+"` next to "`Channels"`
-3. Click "`Create a channel`"
-4. Fill in:
-      Name        : `terraform-drift-alerts`
-      Description : `Terraform drift detection notifications from GitHub Actions`
-      Visibility  : `Private (recommended)` or Public
-5. Click "`Create`"
-6. Skip adding members for now (or add your team)
+## Step 5 — Add Manual Approval Before Destroy
 
-🟢 Step 4.2 — Create a Slack App & Incoming Webhook
-1. Go to → https://api.slack.com/apps
-2. Click "`Create New App`"
-3. Choose "`From scratch`"
-4. Fill in:
-      App Name    : `Terraform Drift Bot`
-      Workspace   : `Select your workspace`
-5. Click "`Create App`"
-Now `enable Incoming Webhooks`:
-6.  In your App settings page, click "`Incoming Webhooks`" 
-    (left sidebar under "`Features`")
-7.  Toggle "`Activate Incoming Webhooks`" → `ON`
-8.  Scroll down and click "`Add New Webhook to Workspace`"
-9.  Select the channel → `#terraform-drift-alerts`
-10. Click "`Allow`"
-11. ⚠️  COPY the Webhook URL shown — it looks like:
-        https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
-12. Keep this page open or save the URL safely
+### Why This Matters
 
-🟢 Step 4.3 — Add Webhook URL to GitHub Secrets
-1. Go to your GitHub repo
-      → `yourname/Terraform-Drift-Detection`
-2. Click "`Settings`"
-3. Click "`Secrets and variables`" → "`Actions`"
-4. Click "`New repository secret`"
-5. Fill in:
-      Name  : `SLACK_WEBHOOK_URL`
-      Value : `https://hooks.slack.com/services/xxxx/xxxx/xxxx`
-6. Click "`Add secret`"
+GitHub Actions supports real approval gates via **Environments**. When a job references an environment:
 
-Your secrets should now look like this:
-- ✅ AZURE_CLIENT_ID
-- ✅ AZURE_SUBSCRIPTION_ID
-- ✅ AZURE_TENANT_ID
-- ✅ SLACK_WEBHOOK_URL    ← NEW
+- ⏸ The workflow **pauses**
+- 👤 Approval is required from configured reviewers
+- ✅ Only then does `terraform destroy` proceed
 
-<!-- 
-Step‑by‑step: Create a Slack Incoming Webhook
-Step 2.1: Create a Slack App
+This is **auditable**, **native to GitHub**, and the **industry best practice** for production destroy workflows.
 
-Go to:
-👉 https://api.slack.com/apps
-Click Create New App
-Choose From scratch
-App name:
-Terraform Drift Detector
+---
 
+### Step 5.1 — One-Time Setup in GitHub UI *(Mandatory)*
 
-Choose your Slack workspace
-Click Create App
+**Create the Environment:**
 
+1. Repo → **Settings** → **Environments**
+2. Click **New environment**
+3. Name it **exactly**: `destroy-approval`
+4. Click **Configure environment**
 
-Step 2.2: Enable Incoming Webhooks
+**Add Required Reviewers:**
 
-Inside your new Slack app:
+1. Enable ✅ **Required reviewers**
+2. Add yourself and/or your platform team
+3. Click **Save**
 
-Go to Incoming Webhooks
+That's it — nothing else needed in the UI.
 
+---
 
-Toggle Activate Incoming Webhooks → ✅ ON
-Click Add New Webhook to Workspace
-Choose the Slack channel where alerts should go (e.g. #terraform-alerts)
-Click Allow
+### Step 5.2 — Runtime Execution Flow
 
-✅ Slack will generate a Webhook URL, for example:
-https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXX
+Here's what happens when the destroy workflow runs:
 
-⚠️ This is a secret. Never commit it to Git.
-
-3. Step‑by‑step: Add Slack webhook to GitHub Actions
-Step 3.1: Store the webhook securely in GitHub
-
-Go to your GitHub repository
-Settings → Secrets and variables → Actions
-Click New repository secret
-Add:
-
-Name:
-SLACK_WEBHOOK_URL
-
-
-Value:
-(Paste the Slack webhook URL)
-
-
-Save ✅ -->
-
-# Step 5 — Add manual approval before destroy
-
-✅ 5.1. How Manual Approval Works in GitHub Actions
-
-GitHub supports real approval gates via Environments.
-- ✅ When a job references an environment:
-
-  - Workflow pauses
-  - Approval is required from configured reviewers
-  - Only then does destroy proceed
-
-This is:
-
-  - Auditable
-  - Native
-  - Industry best practice
-
-
-✅ 5.2. One‑Time Setup in GitHub UI (MANDATORY)
-
-**Step A** — Create an Environment
-
-1. Repo → Settings
-2. Environments
-3. Click New environment
-4. Name it exactly: `destroy-approval`
-5. Click Configure environment
-
-
-**Step B** — Add Required Reviewers
-
-1. Enable ✅ Required reviewers
-2. Add:
-   - Yourself
-   - OR platform team
-
-3. Save
-
-✅ Done. Nothing else needed.
-
-✅ 5.3. What the Runtime Flow Looks Like
-
-▶ **Execution flow**:
-
-1. Run workflow
+```
+1. Workflow triggered
 2. Terraform destroy plan runs
 3. Plan artifact uploaded ✅
-4. Workflow PAUSES
-5. GitHub shows: `⏸ Waiting for approval: destroy-approval`
-6. Reviewer clicks Approve
+4. Workflow PAUSES ⏸
+5. GitHub shows: "Waiting for approval: destroy-approval"
+6. Reviewer clicks Approve ✅
 7. Terraform destroy executes
 8. Slack notification sent ✅
+```
+
+---
+
+### Step 5.3 — Troubleshooting: OIDC Error on Destroy
 
 > [!NOTE]
-> **Troubleshooting**:
->  I was getting an error message so I follow below approach to get it fixed.
+> If you hit an authentication error during the destroy stage, the fix is to add a **Federated Credential** for the `destroy-approval` environment in Azure.
 
-- ✅ Add ONE Azure Federated Credential for the Environment
+**Step A — Go to Azure App Registration:**
+- Azure Portal → **Microsoft Entra ID** → **App registrations**
+- Select the app referenced by `AZURE_CLIENT_ID`
 
-- ✅ Step 1: Go to Azure App Registration
+**Step B — Add a Federated Credential:**
+- Click **Federated credentials** → **Add credential**
+- Choose scenario: **GitHub Actions deploying Azure resources**
 
-  - Azure Portal → Microsoft Entra ID
-  - App registrations
-  - Select the app used by GitHub Actions (AZURE_CLIENT_ID)
+**Step C — Fill in the values exactly:**
 
+| Field | Value |
+|-------|-------|
+| Organization | `YourGitHubUsername` |
+| Repository | `Terraform-Drift-Detection` |
+| Entity Type | `Environment` |
+| Environment Name | `destroy-approval` |
+| Credential Name | `github-destroy-approval` |
 
-✅ Step 2: Federated Credentials → Add credential
-  - Click Federated credentials → Add credential
-  - Choose:
-  - Federated credential scenario:
-      - ✅ GitHub Actions deploying Azure resources
+> 👉 Do **NOT** choose Branch  
+> 👉 Do **NOT** use wildcards  
+> ✅ Save and you're done
 
+**After this fix, the full flow works cleanly:**
 
-✅ Step 3: Fill in the values EXACTLY
+```
+✅ Azure login
+✅ Terraform init
+✅ Terraform destroy
+✅ Slack notification
+```
 
-- following is the details
+No pipeline changes needed. No new secrets. No workarounds.
 
-    - **Organization**: `YourName`
-    - **Repository**: `Terraform-Drift-Detection`
-    - **Entity Type**: `Environment`
-    - **Environment Name**: `destroy-approval`
-    - **Credential Name**: `github-destroy-approval`
+---
 
-- 👉 DO NOT choose Branch, 
-- 👉 DO NOT use wildcards
-- ✅ Save.
+## Teardown
 
-- ✅ Result After Fix
-  
-      - After approval:
-            - Azure login ✅
-            - Terraform init ✅
-            - Terraform destroy ✅
-            - Slack notification ✅
-            - 
-            - No pipeline changes needed.
-            - No secrets added.
-            - No hacks.
-      
-- Run the pipeline to destroy environment.
-- now, you need to delete the backend as well.
+Once you're done, clean up in this order:
 
+**1. Run the pipeline to destroy your infrastructure**
+
+**2. Destroy the Terraform backend:**
 ```bash
 cd bootstrap/
 terraform destroy --auto-approve
 ```
-- Download the [sh file](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
-- Now, [Delete the OIDC connector](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) as well.
+
+**3. Delete the OIDC app registration:**
+- Download the [cleanup script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
+- Follow the [OIDC deletion guide](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md)
 
 ---
-- Reference Link
-- Youtube
-<!-- - [ How to configure Microsoft Teams Connector](https://www.youtube.com/watch?v=sX3nliVH8e4&list=PLJcpyd04zn7q-TF17zwoc3IZNUB8skKD2&index=5) -->
+
+## 📚 Reference Links
+
+- 🔗 [OIDC Configuration Guide](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md)
+- 🔗 [OIDC Setup Script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
+- 🔗 [OIDC Cleanup Script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
+- 🔗 [fics.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
+
+---
+
+*Built with 💙 using GitHub Actions + Terraform + Azure OIDC*
