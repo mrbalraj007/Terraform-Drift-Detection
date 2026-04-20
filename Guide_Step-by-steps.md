@@ -355,10 +355,10 @@ terraform destroy --auto-approve
 
 ```sh
 # Dry run
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC --dry-run
+./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection --dry-run
 
 # Delete OIDC
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC --dry-run
+./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection --dry-run
 ```
 ---
 
