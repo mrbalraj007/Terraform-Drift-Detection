@@ -29,7 +29,7 @@ Before anything else, get these three things in place:
 
 - Command to configure OIDC
 ```sh
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
+./oidc.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
 ```
 
 ### Useful Azure CLI Commands
@@ -363,7 +363,7 @@ terraform destroy --auto-approve
 ./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection --dry-run
 
 # Delete OIDC
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection --dry-run
+./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
 ```
 ---
 
