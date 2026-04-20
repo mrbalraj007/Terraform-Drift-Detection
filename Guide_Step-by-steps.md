@@ -505,4 +505,22 @@ The workflow will run and post a comment directly on the PR like this:
 Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
 
 
-df
+need to add environment and key secret
+jobs:
+  terraform:
+    environment: dev
+Azure Federated Credential
+repo:your-org/your-repo:environment:dev
+
+
+Option 1 (Best Practice) — Add Missing Secrets
+
+Go to:
+👉 GitHub → Settings → Secrets and variables → Actions
+
+Add:
+
+Secret Name	Value Example
+BACKEND_AZURE_RESOURCE_GROUP_NAME	rg-terraform-backend
+BACKEND_AZURE_STORAGE_ACCOUNT_NAME	tfstate12345
+BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	tfstate
