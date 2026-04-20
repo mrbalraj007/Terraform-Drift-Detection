@@ -216,8 +216,12 @@ az role assignment list \
 ├── providers.tf         # ✅ NEW — AzureRM provider
 └── .github/
     └── workflows/
-        ├── terraform.yml          # ✅ CI/CD — Plan on PR, Apply on merge
-        └── drift-detection.yml    # ✅ NEW — Nightly drift check + GitHub Issues
+        ├── terraform_CI_CD_JOB.yml                # ✅ CI/CD — Plan on PR, Apply on merge
+        ├── Terraform - Format and Validate.yml    # ✅ Push and Pull
+│       ├── destroy_resources.yml                  # ✅ To destroy the environment/resources 
+│       └── drift-detection.yml                    # ✅ NEW — Nightly drift check + GitHub Issues
+        └── Dummy_Azure_login_validate.yml         # ✅ For dummy azue login testing
+        └── TBT-With_MSTeam_drift-detection.ps1    # ✅ Will test it when MS Team issue fixed
 ```
 
 ---
@@ -454,3 +458,48 @@ terraform destroy --auto-approve
 ---
 
 *Built with 💙 using GitHub Actions + Terraform + Azure OIDC*
+
+
+
+🌍 Step 3 — Create the production Environment in GitHub
+This is what creates the manual approval gate before apply runs.
+
+Go to your repo → Settings → Environments
+Click New environment
+Name it exactly: production (must match what's in the yml)
+Click Configure environment
+Under Required reviewers, click Add required reviewers
+Search for and add yourself (or your team lead)
+Click Save protection rules
+
+Repo Settings
+└── Environments
+    └── production
+        └── Required reviewers: [your GitHub username]   ← add yourself here
+
+This means: when a push hits main, the plan job runs automatically. The apply job will then pause and send you an email saying "Review pending". You click Review deployments → Approve and only then does apply execute.
+
+🔀 Step 8 — Test the PR Flow (Optional but Recommended)
+This tests the plan-comment-on-PR behaviour:
+bash# Create a feature branch
+git checkout -b feature/test-workflow
+
+# Make a small change to any .tf file
+echo "# test" >> main.tf
+
+git add .
+git commit -m "test: trigger PR plan comment"
+git push origin feature/test-workflow
+Then on GitHub, open a Pull Request from feature/test-workflow → main.
+The workflow will run and post a comment directly on the PR like this:
+## Terraform Plan Summary 📋
+| Detail      | Value                  |
+|-------------|------------------------|
+| Repository  | mrbalraj007/...        |
+| Branch      | feature/test-workflow  |
+| ...                                  |
+
+<details><summary>Click to expand full plan output</summary>
+...full terraform plan output here...
+</details>
+Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
