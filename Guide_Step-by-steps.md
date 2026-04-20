@@ -503,3 +503,28 @@ The workflow will run and post a comment directly on the PR like this:
 ...full terraform plan output here...
 </details>
 Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
+
+
+Fix A — Azure Portal (do this now, 2 minutes)
+Your SP needs the storage data-plane role. Without this, terraform init will always 403 on any PR or push:
+Storage Accounts → <your backend storage account>
+  → Access Control (IAM)
+    → Add role assignment
+      → Role:   Storage Blob Data Contributor
+      → Member: demo-github-azure-oidc-connection
+Fix B — The yml change (already done above)
+The one critical line added to the "Commit fmt fixes" step:
+yaml# BEFORE (broken on PRs):
+- name: Commit Terraform fmt fixes
+  run: |
+    git push   ← fails: detached HEAD on pull_request events
+
+# AFTER (fixed):
+- name: Commit Terraform fmt fixes
+  if: github.event_name == 'push'    ← skips entirely on PRs
+  run: |
+    git push
+On a PR the fmt still runs and fixes files on the runner — it just doesn't try to commit back, because on a PR the runner is not on any branch and cannot push. The plan still executes against the corrected files.
+
+
+#https://claude.ai/chat/c0089ec3-8e90-451e-9468-0c5af04c7f65

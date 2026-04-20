@@ -35,12 +35,17 @@ on:
 
 ############################################################
 #  GLOBAL ENV — inherited by all three jobs
+#
+#  NOTE: ARM_USE_AZUREAD is intentionally NOT set here.
+#  The Terraform AzureRM backend requires the Service Principal
+#  to have "Storage Blob Data Contributor" on the storage account
+#  when Azure AD auth is used for the backend.
+#  If you have assigned that role, you may re-enable it below.
 ############################################################
 env:
   TF_VERSION:                     "1.7.0"
   TF_INPUT:                       "false"
   ARM_USE_OIDC:                   "true"
-  ARM_USE_AZUREAD:                "true"
   ARM_CLIENT_ID:                  ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID:                  ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID:            ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -51,7 +56,7 @@ env:
 ############################################################
 permissions:
   id-token:      write   # OIDC token for Azure login
-  contents:      write   # git push for auto-fmt commit (plan job)
+  contents:      write   # git push for auto-fmt commit (push events only)
   pull-requests: write   # post plan comment on PRs
   issues:        write   # github-script API used by PR comment step
 
@@ -104,8 +109,6 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # ── Step 3: Setup Terraform ───────────────────────────
-      # Version from secret — update TERRAFORM_VERSION secret
-      # centrally instead of editing this file.
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -113,39 +116,30 @@ jobs:
           terraform_wrapper: false
 
       # ── Step 4: Terraform Init ────────────────────────────
-      # backend.tf in root handles all backend config.
       - name: Terraform Init
         id: init
         run: terraform init -input=false
 
       # ── Step 5: Terraform Format Check ───────────────────
-      # CHECK only — does NOT modify or commit files.
-      # -check  → exits non-zero if any file needs reformatting
-      # -diff   → shows which lines would change
-      # continue-on-error → validate + plan still run even if fmt fails
+      # CHECK only — does NOT modify or commit files on feature branches.
+      # continue-on-error: true → validate + plan still run even if fmt fails.
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check -diff -recursive
         continue-on-error: true
 
       # ── Step 6: Terraform Validate ────────────────────────
-      # Syntax + internal consistency check. No Azure calls.
-      # Runs even when fmt failed (success() || failure()).
       - name: Terraform Validate
         id: validate
         if: success() || failure()
         run: terraform validate -no-color
 
       # ── Step 7: Terraform Plan ────────────────────────────
-      # Contacts Azure to calculate changes. Saves binary for
-      # the compliance check in Step 8.
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color -input=false -out=tfplan
 
       # ── Step 8: terraform-compliance ─────────────────────
-      # Policy-as-code check against the plan binary.
-      # Uncomment `features:` to point at your policy rules repo.
       - name: terraform-compliance
         uses: terraform-compliance/github_action@0.3.0
         with:
@@ -153,9 +147,6 @@ jobs:
           # features: ssh://git@github.com/your-org/tf-compliance-features.git
 
       # ── Step 9: Checkov Security Scan (opt-in) ────────────
-      # Only runs when commit message also contains [Checkov]
-      # or on a workflow_dispatch trigger.
-      # soft_fail: false → hard fail on any unresolved violation.
       - name: Checkov
         id: checkov
         if: |
@@ -186,7 +177,7 @@ jobs:
 # ============================================================
 #  JOB 2 — PLAN
 #  Runs on:  push → main/master  OR  pull_request → main/master
-#  Does:     fmt auto-fix + commit  |  validate  |  plan
+#  Does:     fmt auto-fix (push only)  |  validate  |  plan
 #            step summary  |  PR comment  |  upload artifact
 # ============================================================
 
@@ -207,18 +198,18 @@ jobs:
     env:
       TF_LOG: INFO
 
-    # Expose plan exit-code so the apply job can gate on it
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
 
     steps:
 
       # ── Step 1: Checkout ──────────────────────────────────
+      # fetch-depth: 0 needed so auto-fmt commit can push (push events only).
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           token:       ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0          # full history needed for auto-fmt commit
+          fetch-depth: 0
 
       # ── Step 2: Azure Login via OIDC ──────────────────────
       - name: Azure Login via OIDC
@@ -229,8 +220,6 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # ── Step 3: Setup Terraform ───────────────────────────
-      # terraform_wrapper: false → raw exit-codes + stdout captured
-      # via `terraform show` rather than the wrapper intercepting them.
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -242,14 +231,24 @@ jobs:
         id: init
         run: terraform init -input=false
 
-      # ── Step 5: Terraform Format (auto-fix & commit back) ─
-      # On main/master we AUTO-FIX and commit the corrected files.
-      # [skip ci] prevents the commit re-triggering this workflow.
+      # ── Step 5: Terraform Format ──────────────────────────
+      # Always runs fmt to fix formatting locally on the runner.
+      # The commit step below only pushes on direct pushes (not PRs)
+      # because PRs checkout a detached HEAD merge commit — git push
+      # would fail with "not currently on a branch" (exit code 128).
       - name: Terraform Format
         id: fmt
         run: terraform fmt -recursive
 
+      # ── Step 6: Commit fmt fixes (PUSH events only) ───────
+      # ⚠ FIX: `if: github.event_name == 'push'` is REQUIRED.
+      # On a pull_request event the runner checks out a detached HEAD
+      # merge commit — there is no branch to push to, so git push
+      # exits 128: "fatal: You are not currently on a branch."
+      # Skipping commit on PRs is safe: the PR author's branch is
+      # not modified but the plan still runs against the merged state.
       - name: Commit Terraform fmt fixes
+        if: github.event_name == 'push'
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -259,12 +258,12 @@ jobs:
             git push
           )
 
-      # ── Step 6: Terraform Validate ────────────────────────
+      # ── Step 7: Terraform Validate ────────────────────────
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
 
-      # ── Step 7: Terraform Plan ────────────────────────────
+      # ── Step 8: Terraform Plan ────────────────────────────
       # -detailed-exitcode:
       #   0 = success, no changes
       #   1 = error
@@ -289,7 +288,7 @@ jobs:
             exit 0
           fi
 
-      # ── Step 8: Build Human-Readable Plan Summary ─────────
+      # ── Step 9: Build Human-Readable Plan Summary ─────────
       - name: Create Plan Summary String
         id: tf-plan-string
         run: |
@@ -317,13 +316,13 @@ jobs:
 
           echo "${delimiter}" >> $GITHUB_OUTPUT
 
-      # ── Step 9: Publish to GitHub Actions Step Summary ────
+      # ── Step 10: Publish to GitHub Actions Step Summary ───
       - name: Publish Plan to Step Summary
         env:
           SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
         run: echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
 
-      # ── Step 10: Post / Replace Plan Comment on PR ────────
+      # ── Step 11: Post / Replace Plan Comment on PR ────────
       # Deletes previous bot comment first — one current comment
       # per PR, not a growing stack of stale ones.
       - name: Post Plan Comment on PR
@@ -363,9 +362,7 @@ jobs:
               body: body
             });
 
-      # ── Step 11: Upload Plan Artifact ─────────────────────
-      # Passed to the apply job — apply runs the exact binary
-      # that was reviewed, not a freshly regenerated plan.
+      # ── Step 12: Upload Plan Artifact ─────────────────────
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -373,7 +370,7 @@ jobs:
           path: tfplan
           retention-days: 5
 
-      # ── Step 12: Azure Logout ─────────────────────────────
+      # ── Step 13: Azure Logout ─────────────────────────────
       - name: Azure Logout
         if: always()
         run: az logout
@@ -392,10 +389,6 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
 
-    # Conditions — ALL must be true:
-    #   1. Direct push (not a PR)
-    #   2. Target branch is main or master
-    #   3. Plan did not error  (0 = no changes  |  2 = changes present)
     if: |
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
@@ -403,9 +396,7 @@ jobs:
 
     # 🔐 MANUAL APPROVAL GATE
     # Set up at: Repo → Settings → Environments → New environment
-    # Name:      production
-    # Add yourself as Required Reviewer.
-    # Apply pauses here until you click Approve in the Actions UI.
+    # Name: production  |  Add yourself as Required Reviewer.
     environment: production
 
     defaults:
