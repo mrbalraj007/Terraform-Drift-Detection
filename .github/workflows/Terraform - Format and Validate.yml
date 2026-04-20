@@ -1,0 +1,374 @@
+name: Terraform Push — Plan & Apply
+
+############################################################
+# Triggers:
+#   • push  → main / master  (runs Plan + Apply)
+#   • pull_request → main / master  (runs Plan only, posts comment)
+############################################################
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+############################################################
+# Global env — shared by BOTH jobs
+############################################################
+env:
+  TF_VERSION:                  "1.7.0"
+  ARM_USE_OIDC:                "true"
+  ARM_CLIENT_ID:               ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID:               ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID:         ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_SKIP_PROVIDER_REGISTRATION: "true"
+
+############################################################
+# Permissions — OIDC + PR comments + auto-fmt commit
+############################################################
+permissions:
+  id-token:      write   # OIDC token for Azure login
+  contents:      write   # needed for git push (auto-fmt commit)
+  pull-requests: write   # post plan comment on PRs
+  issues:        write   # used by github-script in PR comment
+
+# ===========================================================
+# JOB 1 — PLAN  (always runs on push + PR)
+# ===========================================================
+jobs:
+  plan:
+    name: 'Terraform Plan'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
+
+    # Expose plan exit-code so the apply job can gate on it
+    outputs:
+      tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
+
+    steps:
+
+      # ------- Step 1: Checkout Code -------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0          # full history needed for fmt auto-commit
+
+      # ------- Step 2: Azure Login via OIDC -------
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # ------- Step 3: Setup Terraform -------
+      #   terraform_wrapper: false  →  lets us capture raw exit-codes and
+      #   stdout from terraform plan without the wrapper intercepting them.
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      # ------- Step 4: Terraform Init -------
+      - name: Terraform Init
+        id: init
+        run: terraform init -input=false
+
+      # ------- Step 5: Terraform Format (auto-fix & commit back) -------
+      #   Runs on every push so main/master always stays clean.
+      #   On a PR it formats locally; if it changes files the next step
+      #   commits them so the PR branch is updated automatically.
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -recursive
+
+      - name: Commit Terraform fmt fixes
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (
+            git add -A &&
+            git commit -m "ci: auto-fix terraform fmt [skip ci]" &&
+            git push
+          )
+
+      # ------- Step 6: Terraform Validate -------
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      # ------- Step 7: Terraform Plan -------
+      #   -detailed-exitcode returns:
+      #     0 = no changes
+      #     1 = error
+      #     2 = changes present  ← this is what triggers the apply job
+      - name: Terraform Plan
+        id: tf-plan
+        run: |
+          export exitcode=0
+          terraform plan -detailed-exitcode -no-color -input=false -out=tfplan || export exitcode=$?
+
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+
+          if [ $exitcode -eq 1 ]; then
+            echo "::error::Terraform Plan failed!"
+            exit 1
+          else
+            exit 0
+          fi
+
+      # ------- Step 8: Build Human-Readable Plan Summary -------
+      - name: Create Plan Summary String
+        id: tf-plan-string
+        run: |
+          TERRAFORM_PLAN=$(terraform show -no-color tfplan)
+
+          delimiter="$(openssl rand -hex 8)"
+          echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
+
+          echo "## Terraform Plan Summary 📋" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "| Detail | Value |" >> $GITHUB_OUTPUT
+          echo "|--------|-------|" >> $GITHUB_OUTPUT
+          echo "| **Repository** | \`${{ github.repository }}\` |" >> $GITHUB_OUTPUT
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_OUTPUT
+          echo "| **Triggered by** | \`${{ github.actor }}\` |" >> $GITHUB_OUTPUT
+          echo "| **Event** | \`${{ github.event_name }}\` |" >> $GITHUB_OUTPUT
+          echo "| **Run ID** | \`${{ github.run_id }}\` |" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "<details><summary>Click to expand full plan output</summary>" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo '```terraform' >> $GITHUB_OUTPUT
+          echo "$TERRAFORM_PLAN" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "</details>" >> $GITHUB_OUTPUT
+
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+
+      # ------- Step 9: Publish Plan to GitHub Actions Step Summary -------
+      - name: Publish Plan to Step Summary
+        env:
+          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
+        run: echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+
+      # ------- Step 10: Post Plan Comment on Pull Request -------
+      - name: Post Plan Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = `${process.env.SUMMARY}`;
+
+            // Delete previous bot comments to keep the PR clean
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            for (const comment of comments.data) {
+              if (
+                comment.user.login === 'github-actions[bot]' &&
+                comment.body.includes('Terraform Plan Summary')
+              ) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id
+                });
+              }
+            }
+
+            // Post fresh comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      # ------- Step 11: Upload Plan Artifact (passed to apply job) -------
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+          retention-days: 5
+
+      # ------- Step 12: Azure Logout -------
+      - name: Azure Logout
+        if: always()
+        run: az logout
+
+
+# ===========================================================
+# JOB 2 — APPLY  (push to main/master only + plan had changes)
+# ===========================================================
+  apply:
+    name: 'Terraform Apply'
+    needs: plan
+    runs-on: ubuntu-latest
+
+    # Only runs when:
+    #   1. It's a direct push (not a PR)
+    #   2. On main or master
+    #   3. The plan produced changes (exitcode == 2) or succeeded clean (exitcode == 0)
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      needs.plan.outputs.tfplanExitCode != '1'
+
+    # 🔐 MANUAL APPROVAL GATE
+    #   Create an Environment named "production" under:
+    #   Repo → Settings → Environments → Add Environment
+    #   Add required reviewers there to force a human to approve before apply runs.
+    environment: production
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
+
+    steps:
+
+      # ------- Step 1: Checkout Code -------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      # ------- Step 2: Azure Login via OIDC -------
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # ------- Step 3: Setup Terraform -------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      # ------- Step 4: Terraform Init -------
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      # ------- Step 5: Download Plan Artifact from Plan Job -------
+      #   The plan binary produced in Job 1 is downloaded here so apply
+      #   executes exactly the changes that were reviewed — nothing more.
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ./
+
+      # ------- Step 6: Terraform Apply -------
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve -input=false tfplan
+
+      # ------- Step 7: Slack Notification (Always — Success or Failure) -------
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ "${{ job.status }}" == "success" ]; then
+            COLOR="#00C853"
+            ICON=":white_check_mark:"
+            STATUS_TEXT="Apply completed successfully."
+            BUTTON_STYLE="primary"
+            HEADER_TEXT="Terraform Apply — SUCCESS"
+          else
+            COLOR="#FF0000"
+            ICON=":x:"
+            STATUS_TEXT="Apply FAILED. Immediate review required!"
+            BUTTON_STYLE="danger"
+            HEADER_TEXT="Terraform Apply — FAILED"
+          fi
+
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"attachments\": [
+              {
+                \"color\": \"$COLOR\",
+                \"blocks\": [
+                  {
+                    \"type\": \"header\",
+                    \"text\": {
+                      \"type\": \"plain_text\",
+                      \"text\": \"$ICON  $HEADER_TEXT\",
+                      \"emoji\": true
+                    }
+                  },
+                  {
+                    \"type\": \"section\",
+                    \"fields\": [
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Repository:*\n\`${{ github.repository }}\`\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Branch:*\n\`${{ github.ref_name }}\`\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Triggered by:*\n\`${{ github.actor }}\`\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Run ID:*\n\`${{ github.run_id }}\`\"
+                      }
+                    ]
+                  },
+                  {
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Status:* $ICON  $STATUS_TEXT\"
+                    }
+                  },
+                  {
+                    \"type\": \"actions\",
+                    \"elements\": [
+                      {
+                        \"type\": \"button\",
+                        \"text\": {
+                          \"type\": \"plain_text\",
+                          \"text\": \"View Apply Run\",
+                          \"emoji\": true
+                        },
+                        \"style\": \"$BUTTON_STYLE\",
+                        \"url\": \"$RUN_URL\"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
+
+      # ------- Step 8: Azure Logout -------
+      - name: Azure Logout
+        if: always()
+        run: az logout
