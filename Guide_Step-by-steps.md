@@ -27,6 +27,11 @@ Before anything else, get these three things in place:
 - 📥 Download the [OIDC setup script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
 - 📥 Download [fics.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
 
+- Command to configure OIDC
+```sh
+./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
+```
+
 ### Useful Azure CLI Commands
 
 **Get your Subscription ID:**
