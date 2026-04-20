@@ -248,8 +248,12 @@ Once you push to GitHub, Actions will automatically:
 - **Run `terraform plan`** on every Pull Request
 - **Run `terraform apply`** on every merge to `main`
 
+- Verify pipeline status:
+![alt text](image-8.png)
+
 - Verify the infrastructure created by pipeline.
-   
+   ![alt text](image-9.png)
+
 ---
 
 ## Step 4 — Add Slack Notifications
@@ -309,6 +313,7 @@ Your repo secrets should now look like this:
 ✅ AZURE_TENANT_ID
 ✅ SLACK_WEBHOOK_URL    ← NEW
 ```
+![alt text](image-10.png)
 
 ---
 
@@ -342,6 +347,7 @@ This is **auditable**, **native to GitHub**, and the **industry best practice** 
 3. Click **Save**
 
 That's it — nothing else needed in the UI.
+![alt text](image-11.png)
 
 ---
 
@@ -374,7 +380,7 @@ Here's what happens when the destroy workflow runs:
 **Step B — Add a Federated Credential:**
 - Click **Federated credentials** → **Add credential**
 - Choose scenario: **GitHub Actions deploying Azure resources**
-
+![alt text](image-12.png)
 **Step C — Fill in the values exactly:**
 
 | Field | Value |
@@ -385,9 +391,12 @@ Here's what happens when the destroy workflow runs:
 | Environment Name | `destroy-approval` |
 | Credential Name | `github-destroy-approval` |
 
+![alt text](image-13.png)
+![alt text](image-14.png)
 > 👉 Do **NOT** choose Branch  
 > 👉 Do **NOT** use wildcards  
 > ✅ Save and you're done
+
 
 **After this fix, the full flow works cleanly:**
 
@@ -397,11 +406,19 @@ Here's what happens when the destroy workflow runs:
 ✅ Terraform destroy
 ✅ Slack notification
 ```
-
 No pipeline changes needed. No new secrets. No workarounds.
+---
+Slack Notification Alert
+![alt text](image-15.png)
+
+![alt text](image-16.png)
+
+![alt text](image-17.png)
+
 
 ---
-
+---
+---
 ## Teardown
 
 Once you're done, clean up in this order:
