@@ -1,4 +1,4 @@
-# 🚀 Terraform Drift Detection on Azure — Complete Setup Guide
+# 🚀 Terraform Drift Detection on Azure Environment— Complete Setup Guide
 ### GitHub Actions + OIDC + Slack Notifications + Manual Approval Gates
 
 > **A production-grade guide** to deploy Terraform infrastructure on Azure using passwordless OIDC authentication, automated drift detection, Slack alerts, and safe destroy workflows with manual approval gates.
@@ -22,15 +22,44 @@
 ## Prerequisites
 
 Before anything else, get these three things in place:
-
+- [Terraform CLI](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli) must be installed
+- Clone the [Repo: Terraform-Drift-Detection](https://github.com/mrbalraj007/Terraform-Drift-Detection.git)
 - 🔗 Configure an [OIDC connection](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md) for passwordless Azure authentication
 - 📥 Download the [OIDC setup script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
 - 📥 Download [fics.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
 
-- Command to configure OIDC
+- **Command to configure OIDC**
 ```sh
 ./oidc.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
+
+# - `APP_NAME` — the Azure AD application name
+# - `REPO` — your GitHub repo in `ORG/REPO` format
+
 ```
+> [!CAUTION]
+*You need to run the above command `twice a time` in terminal.*
+
+> When you run the above command then it will ask you the following thing
+  
+      ```sh
+      Logging into GitHub CLI...
+      ? Where do you use GitHub? GitHub.com                                                                                                                                                                                
+      ? What is your preferred protocol for Git operations on this host? HTTPS                                                                                                                                                  
+      ? Authenticate Git with your GitHub credentials? Yes                                                                                                                                                                      
+      ? How would you like to authenticate GitHub CLI? Login with a web browser                                                                                                                                                 
+                                                                                                                                                                                    ! First copy your one-time code: 25EE-C65B                                                                                                                                                                                
+      Press Enter to open https://github.com/login/device in your browser...                                                                              ```                                                                      
+![alt text](image.png)
+![alt text](image-1.png)
+
+It will looks like that
+![alt text](image-2.png)
+
+- Verify the `Repository secrets` and you will notice that secerts already been configured.
+
+  - Repo > Settings >secrets and variables >Actions 
+  
+![alt text](image-3.png)
 
 ### Useful Azure CLI Commands
 
@@ -54,13 +83,32 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 az account show --query '{SubscriptionID:id, Name:name}' -o json
 ```
 
-**Get SP_ID, APP_ID, and SUB_ID in one shot:**
+<!-- **Get SP_ID, APP_ID, and SUB_ID in one shot:**
 ```bash
 az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
   --query "[].{SP_ID:id, APP_ID:appId}" -o table && \
   az account show --query "{SUB_ID:id}" -o table
+``` -->
+
+**Get Object ID — CLI & GUI**
+- Via CLI
+
+**By App Name**
+```bash
+az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
+  --query "[].{ObjectID:id, AppID:appId, Name:displayName}" \
+  -o table
 ```
 
+
+**Via GUI (Azure Portal)**
+```sh
+portal.azure.com
+  └── Search → "Enterprise Applications"
+        └── Search: demo-github-azure-oidc-connection
+              └── Overview
+                    └── Object ID  ← Copy this ✅
+```                    
 ---
 
 ## Step 1 — Manually Assign the Contributor Role (CLI)
@@ -130,22 +178,28 @@ az role assignment create \
   --assignee-object-id $SP_ID \
   --assignee-principal-type ServicePrincipal
 ```
+> [!NOTE]
+If failed then you have to give permission manually using GUI
+
+- Go to Subscription > Select your suscription> Access control (IAM) > Add > Add Role assignment >
+![alt text](image-4.png)
+
+- Select `contributor` role from `Privileged administrator roles` and click `Next`
+![alt text](image-5.png)
+
+- Click on assign Access to:  Select your service name "`demo-github-azure-oidc-connection`" and click on review and finish.
+![alt text](image-6.png)
 
 ---
 
-### Step 1.4 — Configure OIDC (Run the Script)
-
+### Step 1.4 — Quick Verification Command
 ```bash
-# Dry run first — always a good idea
-./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC --dry-run
-
-# Normal run
-./delete-oidc-app.sh demo-github-azure-oidc-connection mrsingh_xxx/GitHub-Action-Azure_OpenID_Connect-OIDC
+az role assignment list \
+  --assignee $SP_ID \
+  --subscription $SUB_ID \
+  --query "[].{Role:roleDefinitionName, Scope:scope}" \
+  -o table
 ```
-
-- `APP_NAME` — the Azure AD application name
-- `REPO` — your GitHub repo in `ORG/REPO` format
-
 ---
 
 ## Project Structure
@@ -175,6 +229,10 @@ cd bootstrap/
 terraform init
 terraform apply
 ```
+![alt text](image-7.png)
+
+>[!NOTE]
+> It will create a *backend storage account* for our pipeline.
 
 ### Step 2.1 — Get the Storage Account Key *(Optional)*
 
@@ -190,6 +248,8 @@ Once you push to GitHub, Actions will automatically:
 - **Run `terraform plan`** on every Pull Request
 - **Run `terraform apply`** on every merge to `main`
 
+- Verify the infrastructure created by pipeline.
+   
 ---
 
 ## Step 4 — Add Slack Notifications
