@@ -35,7 +35,7 @@ jobs:
   terraform-analysis:
     name: 'Terraform Format, Validate, Plan & Scan'
     runs-on: ubuntu-latest
-
+    environment: dev   # 👈 ADD IT HERE
     ########################################################
     # Condition:
     # Run only if commit message contains [CI]
