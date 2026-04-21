@@ -54,13 +54,13 @@ Before anything else, get these three things in place:
 <img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/3f1a5a65-be1e-4c25-a906-4e1595974f0e" />
 
 It will looks like that
-![alt text](image-2.png)
+<img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/bf59c905-4c21-4559-ae4a-d39779d19fe3" />
 
 - Verify the `Repository secrets` and you will notice that secerts already been configured.
 
   - Repo > Settings >secrets and variables >Actions 
   
-![alt text](image-3.png)
+<img width="1467" height="874" alt="Image" src="https://github.com/user-attachments/assets/e1fed238-cc18-4d48-b3d4-24d02fe721f6" />
 
 ### Useful Azure CLI Commands
 
@@ -183,13 +183,13 @@ az role assignment create \
 If failed then you have to give permission manually using GUI
 
 - Go to Subscription > Select your suscription> Access control (IAM) > Add > Add Role assignment >
-![alt text](image-4.png)
+<img width="1467" height="874" alt="Image" src="https://github.com/user-attachments/assets/cbeb57db-0878-45d1-b223-a8b125c94a80" />
 
 - Select `contributor` role from `Privileged administrator roles` and click `Next`
-![alt text](image-5.png)
+<img width="1467" height="940" alt="Image" src="https://github.com/user-attachments/assets/80a03547-f8c0-443f-8386-43ffb1259a3f" />
 
 - Click on assign Access to:  Select your service name "`demo-github-azure-oidc-connection`" and click on review and finish.
-![alt text](image-6.png)
+<img width="1888" height="940" alt="Image" src="https://github.com/user-attachments/assets/8bc959fb-7ed0-4eb5-919f-2a92b4aaefc3" />
 
 ---
 
@@ -234,7 +234,7 @@ cd bootstrap/
 terraform init
 terraform apply
 ```
-![alt text](image-7.png)
+<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/17e7626c-dea9-42cb-b439-0c24b0952d51" />
 
 >[!NOTE]
 > It will create a *backend storage account* for our pipeline.
@@ -254,10 +254,12 @@ Once you push to GitHub, Actions will automatically:
 - **Run `terraform apply`** on every merge to `main`
 
 - Verify pipeline status:
-![alt text](image-8.png)
+
+<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/791e619d-9294-4881-a9db-7f9a3c4c58e9" />
 
 - Verify the infrastructure created by pipeline.
-   ![alt text](image-9.png)
+
+<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/83d278a6-30a2-4781-b045-c7f05fbc8a3c" />
 
 ---
 
@@ -318,7 +320,7 @@ Your repo secrets should now look like this:
 ✅ AZURE_TENANT_ID
 ✅ SLACK_WEBHOOK_URL    ← NEW
 ```
-![alt text](image-10.png)
+<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/aa42bcb3-36b9-4f11-94e9-0e328a649427" />
 
 ---
 
@@ -352,7 +354,8 @@ This is **auditable**, **native to GitHub**, and the **industry best practice** 
 3. Click **Save**
 
 That's it — nothing else needed in the UI.
-![alt text](image-11.png)
+
+<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/821b6655-4557-482b-add2-bd68e17d41bd" />
 
 ---
 
@@ -385,7 +388,9 @@ Here's what happens when the destroy workflow runs:
 **Step B — Add a Federated Credential:**
 - Click **Federated credentials** → **Add credential**
 - Choose scenario: **GitHub Actions deploying Azure resources**
-![alt text](image-12.png)
+  
+<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/3a77ce18-4aab-4890-b6c5-b69d27957673" />
+
 **Step C — Fill in the values exactly:**
 
 | Field | Value |
@@ -396,8 +401,8 @@ Here's what happens when the destroy workflow runs:
 | Environment Name | `destroy-approval` |
 | Credential Name | `github-destroy-approval` |
 
-![alt text](image-13.png)
-![alt text](image-14.png)
+<img width="1696" height="948" alt="Image" src="https://github.com/user-attachments/assets/deb00be4-dc3a-442e-ba3e-a99f19bea46d" />
+<img width="1558" height="765" alt="Image" src="https://github.com/user-attachments/assets/aceb1f27-cda9-447a-b610-a5b3b1b11c60" />
 > 👉 Do **NOT** choose Branch  
 > 👉 Do **NOT** use wildcards  
 > ✅ Save and you're done
@@ -414,11 +419,9 @@ Here's what happens when the destroy workflow runs:
 No pipeline changes needed. No new secrets. No workarounds.
 ---
 Slack Notification Alert
-![alt text](image-15.png)
-
-![alt text](image-16.png)
-
-![alt text](image-17.png)
+<img width="849" height="370" alt="Image" src="https://github.com/user-attachments/assets/a428a938-22fc-4619-817a-52fcbffdb287" />
+<img width="849" height="370" alt="Image" src="https://github.com/user-attachments/assets/693f67f1-e548-487a-ae56-da08af4b86ea" />
+<img width="996" height="317" alt="Image" src="https://github.com/user-attachments/assets/99af6115-7f80-49be-8272-071304faaf47" />
 
 
 ---
