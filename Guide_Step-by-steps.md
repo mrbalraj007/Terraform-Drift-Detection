@@ -49,8 +49,9 @@ Before anything else, get these three things in place:
       ? How would you like to authenticate GitHub CLI? Login with a web browser                                                                                                                                                 
                                                                                                                                                                                     ! First copy your one-time code: 25EE-C65B                                                                                                                                                                                
       Press Enter to open https://github.com/login/device in your browser...                                                                              ```                                                                      
-![alt text](image.png)
-![alt text](image-1.png)
+<img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/c6ec7de8-d44c-404a-bd99-4f0aab449597" />
+
+<img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/3f1a5a65-be1e-4c25-a906-4e1595974f0e" />
 
 It will looks like that
 ![alt text](image-2.png)
