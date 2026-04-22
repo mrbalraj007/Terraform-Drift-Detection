@@ -485,7 +485,7 @@ or run the following script
 chmod +x 01.create-backend-secrets.sh
 
 # run the following command
-./01.create-backend-secrets.sh
+./create-backend-secrets.sh mrbalraj007/Terraform-Drift-Detection dev
 ```
 
 
@@ -663,3 +663,5 @@ Or run:
 
 Shellgit fetch --pruneShow more lines
 This cleans up deleted remote branches.
+
+
