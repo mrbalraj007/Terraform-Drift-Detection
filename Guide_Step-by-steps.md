@@ -557,3 +557,52 @@ az group delete \
   --yes --no-wait
 
 az group show --name rg-terraform-state 2>/dev/null || echo "RG deleted OK"
+
+
+
+What the script does — step by step
+StepActionPre-flightChecks Azure CLI is installed and you're logged in (prompts az login if not)Step 1Resolves the Object ID of demo-github-azure-oidc-connection automaticallyStep 2Idempotency check — skips creation if the credential already existsStep 3Builds the exact OIDC subject: repo:mrbalraj007/Terraform-Drift-Detection:environment:devStep 4Creates the federated credential via az ad app federated-credential createStep 5Lists all credentials on the app so you can visually verifyStep 6Prints a reminder of GitHub Secrets needed + the correct values
+
+`Storage Blob Data Contributor`
+Because you have ARM_USE_AZUREAD: true in your workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so Storage Blob Data Contributor is mandatory.
+The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
+
+App Registration / OIDC = Who you are (Identity)
+Role Assignment on Storage Account = What you're allowed to do (Permission)
+
+
+Step-by-Step GUI
+Step 1 — Go to your Storage Account
+Azure Portal → Storage Accounts → <your-backend-storage-account>
+
+Step 2 — Open Access Control (IAM)
+Click "Access Control (IAM)" in the left sidebar
+![Storage Account left menu → Access Control IAM]
+
+Step 3 — Add Role Assignment
+Click "+ Add" → "Add role assignment"
++ Add
+ └─ Add role assignment   ← click this
+
+Step 4 — Search for the Role
+On the Role tab, search for:
+Storage Blob Data Contributor
+Select it → click Next
+
+Step 5 — Assign Access To
+On the Members tab:
+FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType demo-github-azure-oidc-connection
+Select it → click Select → click Next → click Review + assign
+
+```sh
+Azure Portal
+  └── Storage Accounts
+        └── <your-backend-storage-account>
+              └── Access Control (IAM)              ← LEFT MENU
+                    └── + Add → Add role assignment
+                          ├── Role tab
+                          │     └── Search: "Storage Blob Data Contributor" ✅
+                          └── Members tab
+                                └── Assign access to: User/group/service principal
+                                      └── Select: "demo-github-azure-oidc-connection" ✅
+```
