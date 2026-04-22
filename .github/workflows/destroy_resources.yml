@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
 
     # 🔐 MANUAL APPROVAL GATE
-    environment: destroy-approval
+    environment:  dev # destroy-approval
 
     defaults:
       run:
