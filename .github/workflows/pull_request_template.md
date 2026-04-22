@@ -1,10 +1,10 @@
 # 📌 Pull Request Title
-<!-- Provide a clear and concise title -->
+> Provide a clear and concise title
 
 ---
 
 ## 📖 Description
-<!-- Describe what this PR does and why -->
+> Describe what this PR does and why
 - What problem does this solve?
 - What changes were made?
 - Why is this the best approach?
@@ -12,7 +12,7 @@
 ---
 
 ## 🔗 Related Work / Tickets
-<!-- Link Jira, Azure DevOps, GitHub Issues, etc. -->
+> Link Jira, Azure DevOps, GitHub Issues, etc.
 - Ticket: 
 - Epic/Story:
 - Related PRs:
