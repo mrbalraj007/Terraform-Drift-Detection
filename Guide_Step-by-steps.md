@@ -636,3 +636,30 @@ The workflow will run and post a comment directly on the PR like this:
 Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
 
 
+Step-by-step fix to rename the branch
+1️⃣ Check your current branch name
+Make sure you’re on the renamed branch:
+Shellgit branchShow more lines
+The * should be on the new branch name.
+
+2️⃣ Push the renamed branch to remote
+This creates the new branch name on the remote:
+Shellgit push origin -u NEW_BRANCH_NAMEShow more lines
+Example:
+Shellgit push origin -u feature/new-login``Show more lines
+The -u sets upstream tracking so future pushes work normally.
+
+3️⃣ Delete the old branch from remote
+Now remove the old name from the remote:
+Shellgit push origin --delete OLD_BRANCH_NAMEShow more lines
+Example:
+Shellgit push origin --delete feature/login-oldShow more lines
+
+4️⃣ Refresh in VS Code
+If VS Code still shows the old branch:
+
+Open Command Palette → Git: Fetch
+Or run:
+
+Shellgit fetch --pruneShow more lines
+This cleans up deleted remote branches.
