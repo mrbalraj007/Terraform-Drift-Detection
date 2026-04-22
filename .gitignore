@@ -3,7 +3,7 @@
 .terraform/
 # Ignore the terraform lock file
 .terraform.lock.hcl
-
+.terraform.tfstate.lock.info
 # Ignore the terraform state files
 terraform.tfstate
 terraform.tfstate.backup
