@@ -444,11 +444,11 @@ terraform destroy --auto-approve
 - Follow the [OIDC deletion guide](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md)
 
 ```sh
-# Dry run
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection --dry-run
+# Preview only — no changes made
+./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev --dry-run
 
-# Delete OIDC
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
+# Normal delete
+./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev
 ```
 ---
 
