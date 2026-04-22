@@ -1,0 +1,376 @@
+<mxfile host="app.diagrams.net" modified="2026-04-21T00:00:00.000Z" agent="draw.io 21.6.6" version="21.6.6" type="device">
+  <diagram id="terraform-azure-complete" name="Terraform Azure Full CI/CD Architecture">
+    <mxGraphModel dx="1422" dy="762" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2880" pageHeight="1380" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TITLE -->
+        <mxCell id="TITLE" value="🚀  Terraform on Azure — Full CI/CD Architecture  |  4 Workflows  ·  GitHub Actions + OIDC + Drift Detection + Slack Alerts + Manual Approval Gate"
+          style="text;html=1;fontSize=16;fontStyle=1;fillColor=#0D0D2B;fontColor=#FFFFFF;rounded=1;strokeColor=none;align=center;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="2800" height="46" as="geometry" />
+        </mxCell>
+
+        <!-- SHARED SECRETS BANNER -->
+        <mxCell id="SEC" value="&lt;b&gt;🔑 GitHub Secrets (shared across all workflows):&lt;/b&gt;  AZURE_CLIENT_ID  ·  AZURE_SUBSCRIPTION_ID  ·  AZURE_TENANT_ID  ·  SLACK_WEBHOOK_URL  ·  GITHUB_TOKEN (auto)  ·  TERRAFORM_VERSION  ·  BACKEND_AZURE_RESOURCE_GROUP_NAME  ·  BACKEND_AZURE_STORAGE_ACCOUNT_NAME  ·  BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME"
+          style="rounded=1;fillColor=#F3E5F5;fontColor=#4A148C;strokeColor=#AB47BC;strokeWidth=2;fontSize=9.5;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="40" y="64" width="2800" height="46" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- LANE 1 — terraform_push_scan.yml           -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="L1BG" value="" style="rounded=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2.5;arcSize=2;opacity=70;" vertex="1" parent="1">
+          <mxGeometry x="40" y="118" width="2800" height="188" as="geometry" />
+        </mxCell>
+        <mxCell id="L1BADGE" value="&lt;b&gt;WF 01&lt;/b&gt;" style="text;html=1;fontSize=9;fillColor=#2E7D32;fontColor=#fff;strokeColor=none;align=center;verticalAlign=middle;rounded=1;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="41" y="178" width="44" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="L1H1" value="terraform_push_scan.yml" style="text;html=1;fontSize=9;fillColor=none;fontColor=#1B5E20;strokeColor=none;align=left;verticalAlign=middle;fontStyle=3;" vertex="1" parent="1">
+          <mxGeometry x="94" y="120" width="230" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="L1H2" value="Trigger: push to &lt;b&gt;non-main&lt;/b&gt; with &lt;b&gt;[CI]&lt;/b&gt; in commit  ·  or workflow_dispatch  |  environment: dev  ·  ARM_USE_OIDC=true  ·  ARM_USE_AZUREAD=true  ·  Azure Blob Backend" style="text;html=1;fontSize=9.5;fillColor=none;fontColor=#1B5E20;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="330" y="120" width="1500" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="W1S1" value="&lt;b&gt;① Push Trigger&lt;/b&gt;&lt;br/&gt;branches-ignore: main&lt;br/&gt;commit contains [CI]" style="rounded=1;fillColor=#388E3C;fontColor=#fff;strokeColor=#2E7D32;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="103" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S2" value="&lt;b&gt;② Checkout Code&lt;/b&gt;&lt;br/&gt;actions/checkout@v4" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="263" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1OIDC" value="Azure Login&lt;br/&gt;&lt;b&gt;OIDC&lt;/b&gt;&lt;br/&gt;azure/login@v2" style="shape=mxgraph.azure2.azure_active_directory;fillColor=#7719AA;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#5B0F80;" vertex="1" parent="1">
+          <mxGeometry x="421" y="178" width="68" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S3" value="&lt;b&gt;③ Terraform Init&lt;/b&gt;&lt;br/&gt;-backend-config=*&lt;br/&gt;Azure Blob Backend" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="499" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S4" value="&lt;b&gt;④ Terraform Format&lt;/b&gt;&lt;br/&gt;fmt -check -diff&lt;br/&gt;continue-on-error: true" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S5" value="&lt;b&gt;⑤ Terraform Validate&lt;/b&gt;&lt;br/&gt;validate -no-color&lt;br/&gt;Syntax check" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="821" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S6" value="&lt;b&gt;⑥ Terraform Plan&lt;/b&gt;&lt;br/&gt;-no-color -input=false&lt;br/&gt;-out=tfplan.out" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="982" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S7" value="&lt;b&gt;⑦ 🛡 Compliance Scan&lt;/b&gt;&lt;br/&gt;terraform-compliance&lt;br/&gt;github_action@0.3.0" style="rounded=1;fillColor=#01579B;fontColor=#fff;strokeColor=#003D7A;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1143" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S8" value="&lt;b&gt;⑧ 🔒 Checkov Scan&lt;/b&gt;&lt;br/&gt;bridgecrewio/checkov&lt;br/&gt;framework: terraform" style="rounded=1;fillColor=#C62828;fontColor=#fff;strokeColor=#7F0000;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1304" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W1S9" value="&lt;b&gt;✅ Scan Complete&lt;/b&gt;&lt;br/&gt;Results in&lt;br/&gt;GH Actions Summary" style="rounded=1;fillColor=#2E7D32;fontColor=#fff;strokeColor=#1B5E20;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1464" y="182" width="148" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="AW1_12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#388E3C;strokeWidth=2.5;" edge="1" source="W1S1" target="W1S2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_2O" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;" edge="1" source="W1S2" target="W1OIDC" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_O3" value="✓ Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;fontSize=8.5;fontColor=#7719AA;fontStyle=3;" edge="1" source="W1OIDC" target="W1S3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W1S3" target="W1S4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W1S4" target="W1S5" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_56" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W1S5" target="W1S6" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#01579B;strokeWidth=2.5;" edge="1" source="W1S6" target="W1S7" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_78" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;strokeWidth=2.5;" edge="1" source="W1S7" target="W1S8" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW1_89" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;strokeWidth=2.5;" edge="1" source="W1S8" target="W1S9" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- LANE 2 — terraform_CI_CD_JOB.yml           -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="L2BG" value="" style="rounded=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2.5;arcSize=2;opacity=70;" vertex="1" parent="1">
+          <mxGeometry x="40" y="314" width="2800" height="212" as="geometry" />
+        </mxCell>
+        <mxCell id="L2BADGE" value="&lt;b&gt;WF 02&lt;/b&gt;" style="text;html=1;fontSize=9;fillColor=#1565C0;fontColor=#fff;strokeColor=none;align=center;verticalAlign=middle;rounded=1;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="41" y="376" width="44" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="L2H1" value="terraform_CI_CD_JOB.yml" style="text;html=1;fontSize=9;fillColor=none;fontColor=#0D47A1;strokeColor=none;align=left;verticalAlign=middle;fontStyle=3;" vertex="1" parent="1">
+          <mxGeometry x="94" y="316" width="230" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="L2H2" value="Trigger: &lt;b&gt;push or PR to main&lt;/b&gt;  ·  Plan on PR (posts plan as PR comment)  ·  Apply only on push to main  ·  Auto terraform fmt fix + commit  ·  Upload plan artifact (5 days)  ·  TF v1.7.0  ·  azure/login@v2  ·  ARM_USE_OIDC=true" style="text;html=1;fontSize=9.5;fillColor=none;fontColor=#0D47A1;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="330" y="316" width="1700" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="W2S1" value="&lt;b&gt;① Push / PR&lt;/b&gt;&lt;br/&gt;to main branch&lt;br/&gt;id-token: write" style="rounded=1;fillColor=#1565C0;fontColor=#fff;strokeColor=#0D47A1;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="103" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S2" value="&lt;b&gt;② Checkout Code&lt;/b&gt;&lt;br/&gt;checkout@v4&lt;br/&gt;fetch-depth: 0" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="263" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2OIDC" value="Azure Login&lt;br/&gt;&lt;b&gt;OIDC&lt;/b&gt;&lt;br/&gt;azure/login@v2" style="shape=mxgraph.azure2.azure_active_directory;fillColor=#7719AA;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#5B0F80;" vertex="1" parent="1">
+          <mxGeometry x="421" y="384" width="68" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S3" value="&lt;b&gt;③ Terraform Init&lt;/b&gt;&lt;br/&gt;Remote Backend&lt;br/&gt;ARM_USE_OIDC=true" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="499" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S4" value="&lt;b&gt;④ Terraform Format&lt;/b&gt;&lt;br/&gt;fmt -recursive&lt;br/&gt;+ auto-commit &amp; git push" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S5" value="&lt;b&gt;⑤ Terraform Validate&lt;/b&gt;&lt;br/&gt;Config syntax check&lt;br/&gt;ARM_USE_OIDC=true" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="821" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S6" value="&lt;b&gt;⑥ Terraform Plan&lt;/b&gt;&lt;br/&gt;-out=tfplan&lt;br/&gt;ARM_USE_OIDC=true" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="982" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S7" value="&lt;b&gt;⑦ 📝 PR Comment&lt;/b&gt;&lt;br/&gt;Post plan output&lt;br/&gt;&lt;i&gt;(pull_request only)&lt;/i&gt;" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1143" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S8" value="&lt;b&gt;⑧ 📦 Upload Artifact&lt;/b&gt;&lt;br/&gt;tfplan — 5 days&lt;br/&gt;upload-artifact@v4" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1304" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2S9" value="&lt;b&gt;⑨ 🚀 Terraform Apply&lt;/b&gt;&lt;br/&gt;-auto-approve tfplan&lt;br/&gt;&lt;i&gt;(push to main only)&lt;/i&gt;" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1464" y="388" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W2RG" value="Resource Group" style="shape=mxgraph.azure2.resource_groups;fillColor=#0078D4;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#0078D4;" vertex="1" parent="1">
+          <mxGeometry x="1628" y="384" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="W2NSG" value="NSG" style="shape=mxgraph.azure2.network_security_groups;fillColor=#0078D4;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#0078D4;" vertex="1" parent="1">
+          <mxGeometry x="1706" y="384" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="W2ST" value="TF State Storage" style="shape=mxgraph.azure2.storage_accounts;fillColor=#0078D4;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#0078D4;" vertex="1" parent="1">
+          <mxGeometry x="1784" y="384" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="W2LO" value="&lt;b&gt;⑩ az logout&lt;/b&gt;&lt;br/&gt;if: always()" style="rounded=1;fillColor=#546E7A;fontColor=#fff;strokeColor=#37474F;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1862" y="388" width="120" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="AW2_12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;strokeWidth=2.5;" edge="1" source="W2S1" target="W2S2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_2O" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;" edge="1" source="W2S2" target="W2OIDC" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_O3" value="✓ Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;fontSize=8.5;fontColor=#7719AA;fontStyle=3;" edge="1" source="W2OIDC" target="W2S3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W2S3" target="W2S4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W2S4" target="W2S5" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_56" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W2S5" target="W2S6" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;strokeWidth=2.5;" edge="1" source="W2S6" target="W2S7" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_78" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;strokeWidth=2.5;" edge="1" source="W2S7" target="W2S8" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_89" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W2S8" target="W2S9" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_9RG" value="Creates" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2.5;fontSize=9;fontColor=#0078D4;" edge="1" source="W2S9" target="W2RG" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_RGN" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;" edge="1" source="W2RG" target="W2NSG" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_NST" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#0078D4;strokeWidth=2;" edge="1" source="W2NSG" target="W2ST" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW2_SLO" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#546E7A;strokeWidth=2;" edge="1" source="W2ST" target="W2LO" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- LANE 3 — drift-detection.yml               -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="L3BG" value="" style="rounded=1;fillColor=#FFFDE7;strokeColor=#F57F17;strokeWidth=2.5;arcSize=2;opacity=70;" vertex="1" parent="1">
+          <mxGeometry x="40" y="534" width="2800" height="342" as="geometry" />
+        </mxCell>
+        <mxCell id="L3BADGE" value="&lt;b&gt;WF 03&lt;/b&gt;" style="text;html=1;fontSize=9;fillColor=#F57F17;fontColor=#fff;strokeColor=none;align=center;verticalAlign=middle;rounded=1;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="41" y="646" width="44" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="L3H1" value="drift-detection.yml" style="text;html=1;fontSize=9;fillColor=none;fontColor=#E65100;strokeColor=none;align=left;verticalAlign=middle;fontStyle=3;" vertex="1" parent="1">
+          <mxGeometry x="94" y="536" width="220" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="L3H2" value="Trigger: &lt;b&gt;cron 3:41 AM UTC&lt;/b&gt; nightly  ·  or workflow_dispatch  |  -detailed-exitcode: 0=clean · 1=error · 2=drift  ·  Auto GitHub Issue  ·  Slack alert (red/green)  ·  Auto-close issue when clean  ·  issues: write permission" style="text;html=1;fontSize=9.5;fillColor=none;fontColor=#E65100;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="320" y="536" width="1800" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- WF3 Main path (y=672) -->
+        <mxCell id="W3S1" value="&lt;b&gt;① ⏰ Cron / Manual&lt;/b&gt;&lt;br/&gt;3:41 AM UTC nightly&lt;br/&gt;or workflow_dispatch" style="rounded=1;fillColor=#E65100;fontColor=#fff;strokeColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="103" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3S2" value="&lt;b&gt;② Checkout Code&lt;/b&gt;&lt;br/&gt;actions/checkout@v4&lt;br/&gt;issues: write perm" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="263" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3OIDC" value="Azure Login&lt;br/&gt;&lt;b&gt;OIDC&lt;/b&gt;&lt;br/&gt;azure/login@v2" style="shape=mxgraph.azure2.azure_active_directory;fillColor=#7719AA;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#5B0F80;" vertex="1" parent="1">
+          <mxGeometry x="421" y="668" width="68" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="W3S3" value="&lt;b&gt;③ Terraform Init&lt;/b&gt;&lt;br/&gt;Load remote state&lt;br/&gt;ARM_USE_OIDC=true" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="499" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3S4" value="&lt;b&gt;④ Terraform Plan&lt;/b&gt;&lt;br/&gt;-detailed-exitcode&lt;br/&gt;exitcode: 0 / 1 / 2" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3S5" value="&lt;b&gt;⑤ 📦 Upload Artifact&lt;/b&gt;&lt;br/&gt;tfplan — 5 days&lt;br/&gt;upload-artifact@v4" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="821" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3S6" value="&lt;b&gt;⑥ String Output&lt;/b&gt;&lt;br/&gt;terraform show&lt;br/&gt;Readable plan report" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="982" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3S7" value="&lt;b&gt;⑦ 📋 Step Summary&lt;/b&gt;&lt;br/&gt;GITHUB_STEP_SUMMARY&lt;br/&gt;Publish drift report" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1143" y="672" width="148" height="62" as="geometry" />
+        </mxCell>
+        <!-- Decision Diamond -->
+        <mxCell id="W3DEC" value="&lt;b&gt;Drift&lt;br/&gt;Detected?&lt;/b&gt;&lt;br/&gt;exitcode == 2?" style="rhombus;fillColor=#FFB900;strokeColor=#E5A800;fontColor=#1A1A1A;fontSize=11;align=center;verticalAlign=middle;html=1;fontStyle=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="660" width="124" height="94" as="geometry" />
+        </mxCell>
+
+        <!-- YES path — DRIFT (y=794) -->
+        <mxCell id="W3Y1" value="&lt;b&gt;⑧ 📋 GitHub Issue&lt;/b&gt;&lt;br/&gt;Create or Update&lt;br/&gt;labels: drift-detection" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1456" y="794" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3Y2" value="&lt;b&gt;⑨ 🔴 Slack — Drift&lt;/b&gt;&lt;br/&gt;color: #FF0000&lt;br/&gt;button: View Drift" style="rounded=1;fillColor=#4A154B;fontColor=#fff;strokeColor=#3A0F3A;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1616" y="794" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3YLO" value="&lt;b&gt;az logout&lt;/b&gt;&lt;br/&gt;if: always()" style="rounded=1;fillColor=#546E7A;fontColor=#fff;strokeColor=#37474F;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1776" y="794" width="120" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3Y3" value="&lt;b&gt;❌ Fail Workflow&lt;/b&gt;&lt;br/&gt;exit 1&lt;br/&gt;exitcode == 2" style="rounded=1;fillColor=#C62828;fontColor=#fff;strokeColor=#7F0000;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1910" y="794" width="148" height="62" as="geometry" />
+        </mxCell>
+
+        <!-- NO path — CLEAN (y=554) -->
+        <mxCell id="W3N1" value="&lt;b&gt;⑧ 🟢 Slack — All Clear&lt;/b&gt;&lt;br/&gt;color: #00C853&lt;br/&gt;button: View Run Details" style="rounded=1;fillColor=#4A154B;fontColor=#fff;strokeColor=#3A0F3A;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1456" y="554" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3N2" value="&lt;b&gt;⑨ 🔒 Close GH Issue&lt;/b&gt;&lt;br/&gt;Auto-close open drift&lt;br/&gt;issue if one exists" style="rounded=1;fillColor=#107C10;fontColor=#fff;strokeColor=#0B5B0B;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1616" y="554" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W3NLO" value="&lt;b&gt;az logout&lt;/b&gt;&lt;br/&gt;if: always()" style="rounded=1;fillColor=#546E7A;fontColor=#fff;strokeColor=#37474F;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1776" y="554" width="120" height="62" as="geometry" />
+        </mxCell>
+
+        <!-- WF3 Arrows -->
+        <mxCell id="AW3_12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;strokeWidth=2.5;" edge="1" source="W3S1" target="W3S2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_2O" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;" edge="1" source="W3S2" target="W3OIDC" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_O3" value="✓ Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;fontSize=8.5;fontColor=#7719AA;fontStyle=3;" edge="1" source="W3OIDC" target="W3S3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W3S3" target="W3S4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W3S4" target="W3S5" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_56" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;strokeWidth=2.5;" edge="1" source="W3S5" target="W3S6" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;strokeWidth=2.5;" edge="1" source="W3S6" target="W3S7" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_7D" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;strokeWidth=2.5;" edge="1" source="W3S7" target="W3DEC" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_DY" value="YES ⚠️ exitcode=2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;strokeWidth=3;fontSize=9;fontColor=#C62828;fontStyle=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="W3DEC" target="W3Y1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_Y12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;strokeWidth=2.5;" edge="1" source="W3Y1" target="W3Y2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_Y23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#546E7A;strokeWidth=2;" edge="1" source="W3Y2" target="W3YLO" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_YLF" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;strokeWidth=2.5;" edge="1" source="W3YLO" target="W3Y3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_DN" value="NO ✅ exitcode=0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#107C10;strokeWidth=3;fontSize=9;fontColor=#107C10;fontStyle=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" source="W3DEC" target="W3N1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_N12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#107C10;strokeWidth=2.5;" edge="1" source="W3N1" target="W3N2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW3_NLO" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#546E7A;strokeWidth=2;" edge="1" source="W3N2" target="W3NLO" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- LANE 4 — destroy_resources.yml             -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="L4BG" value="" style="rounded=1;fillColor=#FFEBEE;strokeColor=#B71C1C;strokeWidth=2.5;arcSize=2;opacity=70;" vertex="1" parent="1">
+          <mxGeometry x="40" y="884" width="2800" height="308" as="geometry" />
+        </mxCell>
+        <mxCell id="L4BADGE" value="&lt;b&gt;WF 04&lt;/b&gt;" style="text;html=1;fontSize=9;fillColor=#B71C1C;fontColor=#fff;strokeColor=none;align=center;verticalAlign=middle;rounded=1;rotation=-90;" vertex="1" parent="1">
+          <mxGeometry x="41" y="994" width="44" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="L4H1" value="destroy_resources.yml" style="text;html=1;fontSize=9;fillColor=none;fontColor=#7F0000;strokeColor=none;align=left;verticalAlign=middle;fontStyle=3;" vertex="1" parent="1">
+          <mxGeometry x="94" y="886" width="220" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="L4H2" value="Trigger: &lt;b&gt;workflow_dispatch only&lt;/b&gt;  ·  Must type &lt;b&gt;DESTROY&lt;/b&gt; to confirm  ·  JOB 1: plan (no approval)  →  JOB 2: destroy (environment: destroy-approval + Azure Federated Credential required)  ·  Slack notify if: always()" style="text;html=1;fontSize=9.5;fillColor=none;fontColor=#7F0000;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="320" y="886" width="2200" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- JOB1 sub-lane -->
+        <mxCell id="L4J1BG" value="" style="rounded=1;fillColor=#FFCDD2;strokeColor=#EF9A9A;strokeWidth=1.5;arcSize=3;opacity=80;" vertex="1" parent="1">
+          <mxGeometry x="88" y="906" width="958" height="274" as="geometry" />
+        </mxCell>
+        <mxCell id="L4J1LBL" value="&lt;b&gt;JOB 1 — plan&lt;/b&gt;  (no approval required)" style="text;html=1;fontSize=10;fillColor=none;fontColor=#B71C1C;strokeColor=none;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="88" y="908" width="958" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- JOB2 sub-lane -->
+        <mxCell id="L4J2BG" value="" style="rounded=1;fillColor=#FFCDD2;strokeColor=#EF9A9A;strokeWidth=1.5;arcSize=3;opacity=80;" vertex="1" parent="1">
+          <mxGeometry x="1054" y="906" width="1778" height="274" as="geometry" />
+        </mxCell>
+        <mxCell id="L4J2LBL" value="&lt;b&gt;JOB 2 — destroy&lt;/b&gt;  (needs: plan  ·  environment: destroy-approval  ·  Azure Federated Credential required)" style="text;html=1;fontSize=10;fillColor=none;fontColor=#B71C1C;strokeColor=none;align=center;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1054" y="908" width="1778" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- WF4 JOB1 Steps (y=998) -->
+        <mxCell id="W4S1" value="&lt;b&gt;① Manual Dispatch&lt;/b&gt;&lt;br/&gt;workflow_dispatch&lt;br/&gt;input: confirm_destroy" style="rounded=1;fillColor=#B71C1C;fontColor=#fff;strokeColor=#7F0000;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="103" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4S2" value="&lt;b&gt;② ✋ Validate Input&lt;/b&gt;&lt;br/&gt;input == &quot;DESTROY&quot;&lt;br/&gt;exit 1 if mismatch" style="rounded=1;fillColor=#D32F2F;fontColor=#fff;strokeColor=#B71C1C;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="263" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4OIDC1" value="Azure Login&lt;br/&gt;&lt;b&gt;OIDC&lt;/b&gt;&lt;br/&gt;azure/login@v2" style="shape=mxgraph.azure2.azure_active_directory;fillColor=#7719AA;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#5B0F80;" vertex="1" parent="1">
+          <mxGeometry x="421" y="994" width="68" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="W4S3" value="&lt;b&gt;③ Terraform Init&lt;/b&gt;&lt;br/&gt;-input=false&lt;br/&gt;Load backend state" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="499" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4S4" value="&lt;b&gt;④ Terraform Plan&lt;/b&gt;&lt;br/&gt;-destroy -no-color&lt;br/&gt;-out=destroy.tfplan" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4S5" value="&lt;b&gt;⑤ 📦 Upload Artifact&lt;/b&gt;&lt;br/&gt;destroy-plan.txt&lt;br/&gt;for reviewer" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="821" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+
+        <!-- WF4 JOB2 Steps (y=998) -->
+        <mxCell id="W4FED" value="&lt;b&gt;🔐 Azure Federated Credential&lt;/b&gt;&lt;br/&gt;Entity Type: Environment&lt;br/&gt;Name: destroy-approval" style="rounded=1;fillColor=#FFF9C4;fontColor=#4A3000;strokeColor=#F57F17;strokeWidth=1.5;fontSize=9;align=left;verticalAlign=middle;html=1;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1066" y="910" width="218" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="W4GATE" value="&lt;b&gt;⑥ ⏸ Approval Gate&lt;/b&gt;&lt;br/&gt;environment:&lt;br/&gt;destroy-approval" style="rounded=1;fillColor=#FF8C00;fontColor=#fff;strokeColor=#E07B00;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4OIDC2" value="Azure Login&lt;br/&gt;&lt;b&gt;OIDC&lt;/b&gt;&lt;br/&gt;azure/login@v2" style="shape=mxgraph.azure2.azure_active_directory;fillColor=#7719AA;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#5B0F80;" vertex="1" parent="1">
+          <mxGeometry x="1232" y="994" width="68" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="W4S6" value="&lt;b&gt;⑦ Terraform Init&lt;/b&gt;&lt;br/&gt;-input=false&lt;br/&gt;Re-init for destroy" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1312" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4S7" value="&lt;b&gt;⑧ 💥 Terraform Destroy&lt;/b&gt;&lt;br/&gt;destroy -auto-approve&lt;br/&gt;Remove ALL resources" style="rounded=1;fillColor=#B71C1C;fontColor=#fff;strokeColor=#7F0000;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1473" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4RG" value="RG Deleted" style="shape=mxgraph.azure2.resource_groups;fillColor=#B71C1C;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#B71C1C;" vertex="1" parent="1">
+          <mxGeometry x="1636" y="994" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="W4NSG" value="NSG Deleted" style="shape=mxgraph.azure2.network_security_groups;fillColor=#B71C1C;strokeColor=none;fontSize=9;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;html=1;shadow=1;fontColor=#B71C1C;" vertex="1" parent="1">
+          <mxGeometry x="1714" y="994" width="64" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="W4SLK" value="&lt;b&gt;⑨ 🔔 Slack Notify&lt;/b&gt;&lt;br/&gt;✅ SUCCESS / ❌ FAILED&lt;br/&gt;if: always()" style="rounded=1;fillColor=#4A154B;fontColor=#fff;strokeColor=#3A0F3A;fontSize=10;align=center;verticalAlign=middle;html=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1793" y="998" width="148" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="W4BOOT" value="&lt;b&gt;📝 Optional: Bootstrap Destroy (local)&lt;/b&gt;&lt;br/&gt;cd bootstrap/ → terraform destroy --auto-approve&lt;br/&gt;Removes TF backend storage account" style="rounded=1;fillColor=#FFF9C4;fontColor=#4A3000;strokeColor=#F57F17;strokeWidth=1.5;fontSize=9;align=left;verticalAlign=middle;html=1;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1956" y="998" width="264" height="62" as="geometry" />
+        </mxCell>
+
+        <!-- WF4 Arrows -->
+        <mxCell id="AW4_12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B71C1C;strokeWidth=2.5;" edge="1" source="W4S1" target="W4S2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_2O" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;" edge="1" source="W4S2" target="W4OIDC1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_O3" value="✓ Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;fontSize=8.5;fontColor=#7719AA;fontStyle=3;" edge="1" source="W4OIDC1" target="W4S3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W4S3" target="W4S4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W4S4" target="W4S5" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_5G" value="needs: plan ✓" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF8C00;strokeWidth=3;fontSize=9;fontColor=#FF8C00;fontStyle=1;" edge="1" source="W4S5" target="W4GATE" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_GO" value="⏸ Waiting…" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF8C00;strokeWidth=2.5;fontSize=9;fontColor=#FF8C00;" edge="1" source="W4GATE" target="W4OIDC2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_O6" value="✓ Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7719AA;strokeWidth=2;dashed=1;fontSize=8.5;fontColor=#7719AA;fontStyle=3;" edge="1" source="W4OIDC2" target="W4S6" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#5C4EE5;strokeWidth=2.5;" edge="1" source="W4S6" target="W4S7" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_7RG" value="Deletes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B71C1C;strokeWidth=2.5;fontSize=9;fontColor=#B71C1C;" edge="1" source="W4S7" target="W4RG" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_RGN" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#B71C1C;strokeWidth=2;" edge="1" source="W4RG" target="W4NSG" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_NSL" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#4A154B;strokeWidth=2.5;" edge="1" source="W4NSG" target="W4SLK" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="AW4_SLB" value="then (local)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#F57F17;strokeWidth=2;dashed=1;fontSize=9;fontColor=#F57F17;" edge="1" source="W4SLK" target="W4BOOT" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- LEGEND                                      -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="LEGBG" value="" style="rounded=1;fillColor=#F5F5F5;strokeColor=#CCCCCC;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1200" width="2800" height="128" as="geometry" />
+        </mxCell>
+        <mxCell id="LEGT" value="&lt;b&gt;LEGEND&lt;/b&gt;" style="text;html=1;fontSize=11;strokeColor=none;fillColor=none;fontColor=#333;align=left;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="55" y="1204" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="LG01" value="GitHub / Actions" style="rounded=1;fillColor=#24292E;fontColor=#fff;strokeColor=#1a1e22;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="55" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG02" value="Terraform (IaC)" style="rounded=1;fillColor=#5C4EE5;fontColor=#fff;strokeColor=#4B3DCC;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="210" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG03" value="Azure Resource" style="rounded=1;fillColor=#0078D4;fontColor=#fff;strokeColor=#005FAD;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="365" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG04" value="Azure AD / OIDC" style="rounded=1;fillColor=#7719AA;fontColor=#fff;strokeColor=#5C0F80;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="520" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG05" value="Slack Notification" style="rounded=1;fillColor=#4A154B;fontColor=#fff;strokeColor=#3A0F3A;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="675" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG06" value="⏸ Approval Gate" style="rounded=1;fillColor=#FF8C00;fontColor=#fff;strokeColor=#E07B00;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="830" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG07" value="✅ No Drift / Clean" style="rounded=1;fillColor=#107C10;fontColor=#fff;strokeColor=#0B5B0B;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="985" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG08" value="⚠️ Drift / Delete" style="rounded=1;fillColor=#C62828;fontColor=#fff;strokeColor=#7F0000;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1140" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG09" value="🛡 Compliance Scan" style="rounded=1;fillColor=#01579B;fontColor=#fff;strokeColor=#003D7A;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1295" y="1226" width="148" height="30" as="geometry" /></mxCell>
+        <mxCell id="LG10" value="az logout (always)" style="rounded=1;fillColor=#546E7A;fontColor=#fff;strokeColor=#37474F;fontSize=9.5;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1453" y="1226" width="145" height="30" as="geometry" /></mxCell>
+        <mxCell id="LA01" value="&lt;font color='#388E3C'&gt;&lt;b&gt;──── WF1 Push Scan&lt;/b&gt;&lt;/font&gt;" style="text;html=1;fontSize=9.5;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1616" y="1226" width="175" height="30" as="geometry" /></mxCell>
+        <mxCell id="LA02" value="&lt;font color='#1565C0'&gt;&lt;b&gt;──── WF2 CI/CD&lt;/b&gt;&lt;/font&gt;" style="text;html=1;fontSize=9.5;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1804" y="1226" width="165" height="30" as="geometry" /></mxCell>
+        <mxCell id="LA03" value="&lt;font color='#E65100'&gt;&lt;b&gt;──── WF3 Drift&lt;/b&gt;&lt;/font&gt;" style="text;html=1;fontSize=9.5;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="1982" y="1226" width="160" height="30" as="geometry" /></mxCell>
+        <mxCell id="LA04" value="&lt;font color='#B71C1C'&gt;&lt;b&gt;──── WF4 Destroy&lt;/b&gt;&lt;/font&gt;" style="text;html=1;fontSize=9.5;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="2155" y="1226" width="175" height="30" as="geometry" /></mxCell>
+        <mxCell id="LA05" value="&lt;font color='#7719AA'&gt;&lt;i&gt;- - -  OIDC Token (passwordless — no stored credentials)&lt;/i&gt;&lt;/font&gt;" style="text;html=1;fontSize=9.5;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="2343" y="1226" width="475" height="30" as="geometry" /></mxCell>
+
+        <mxCell id="LEGSUM" value="&lt;b&gt;WF1:&lt;/b&gt; Feature branch [CI] → Format · Validate · Plan · Compliance · Checkov  &lt;b&gt;|  WF2:&lt;/b&gt; PR/push to main → Plan+PR comment · Auto fmt commit · Apply → Resource Group + NSG + TF State Storage  &lt;b&gt;|  WF3:&lt;/b&gt; Nightly 3:41 AM → Drift → GH Issue + Slack (red/green) · Auto-close issue  &lt;b&gt;|  WF4:&lt;/b&gt; Manual DESTROY → Validate → Plan → ⏸ Approval → Destroy → Slack  &lt;b&gt;|&lt;/b&gt;  All 4 workflows use &lt;b&gt;Azure OIDC&lt;/b&gt; (ARM_USE_OIDC=true — passwordless)"
+          style="text;html=1;fontSize=9.5;strokeColor=none;fillColor=none;fontColor=#333333;align=center;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="55" y="1263" width="2770" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="FOOT" value="Source: terraform_push_scan.yml  ·  terraform_CI_CD_JOB.yml  ·  drift-detection.yml  ·  destroy_resources.yml  |  Terraform v1.7.0  ·  GitHub Actions  ·  azure/login@v2 OIDC  ·  Checkov  ·  terraform-compliance  ·  Slack Webhooks"
+          style="text;html=1;fontSize=8.5;strokeColor=none;fillColor=none;fontColor=#AAAAAA;align=center;verticalAlign=middle;fontStyle=2;"
+          vertex="1" parent="1">
+          <mxGeometry x="40" y="1338" width="2800" height="18" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
