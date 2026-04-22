@@ -528,3 +528,32 @@ Secret Name	Value Example
 BACKEND_AZURE_RESOURCE_GROUP_NAME	rg-terraform-backend
 BACKEND_AZURE_STORAGE_ACCOUNT_NAME	tfstate12345
 BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	tfstate
+
+
+Nuke Terraform Cache Completely
+bash# Remove all local Terraform cache and state lock files
+rm -rf .terraform
+rm -f .terraform.lock.hcl
+rm -f terraform.tfstate
+rm -f terraform.tfstate.backup
+
+
+# Remove the management lock first (if it exists)
+az lock delete \
+  --name tfstate-storage-lock \
+  --resource-group rg-terraform-state \
+  --resource-name tfstatemyproject001 \
+  --resource-type Microsoft.Storage/storageAccounts 2>/dev/null || echo "No lock found"
+
+# Delete the storage account
+az storage account delete \
+  --name tfstatemyproject001 \
+  --resource-group rg-terraform-state \
+  --yes
+
+# Delete the resource group
+az group delete \
+  --name rg-terraform-state \
+  --yes --no-wait
+
+az group show --name rg-terraform-state 2>/dev/null || echo "RG deleted OK"
