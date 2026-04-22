@@ -465,6 +465,133 @@ terraform destroy --auto-approve
 
 
 
+
+
+
+**Add Missing Secrets**
+
+Go to:
+👉 GitHub → Settings → Secrets and variables → Actions
+
+Add:
+
+Secret Name	Value Example
+BACKEND_AZURE_RESOURCE_GROUP_NAME	`rg-terraform-backend`
+BACKEND_AZURE_STORAGE_ACCOUNT_NAME	`tfstate12345`
+BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	`tfstate`
+
+or run the following script
+```bash
+chmod +x 01.create-backend-secrets.sh
+
+# run the following command
+./01.create-backend-secrets.sh
+```
+
+
+**Nuke Terraform Cache Completely**
+bash# Remove all local Terraform cache and state lock files
+rm -rf .terraform
+rm -f .terraform.lock.hcl
+rm -f terraform.tfstate
+rm -f terraform.tfstate.backup
+
+<!-- 
+# Remove the management lock first (if it exists)
+az lock delete \
+  --name tfstate-storage-lock \
+  --resource-group rg-terraform-state \
+  --resource-name tfstatemyproject001 \
+  --resource-type Microsoft.Storage/storageAccounts 2>/dev/null || echo "No lock found"
+
+# Delete the storage account
+az storage account delete \
+  --name tfstatemyproject001 \
+  --resource-group rg-terraform-state \
+  --yes
+
+# Delete the resource group
+az group delete \
+  --name rg-terraform-state \
+  --yes --no-wait
+
+az group show --name rg-terraform-state 2>/dev/null || echo "RG deleted OK" -->
+
+**Add a new federated credential for repo + environment**
+need to add environment and key secret
+jobs:
+  terraform:
+    environment: dev
+Azure Federated Credential
+repo:your-org/your-repo:environment:dev
+
+On Git Bash (Windows) or any Linux/macOS terminal:
+```bash
+# Make it executable
+chmod +x 02.add-federated-credential
+```
+# Run it
+```sh
+./02.add-federated-credential
+```
+| Step        | Action                                                                 |
+|-------------|------------------------------------------------------------------------|
+| Pre-flight  | Checks Azure CLI is installed and you're logged in (prompts `az login` if not) |
+| Step 1      | Resolves the Object ID of `demo-github-azure-oidc-connection` automatically |
+| Step 2      | Idempotency check — skips creation if the credential already exists     |
+| Step 3      | Builds the exact OIDC subject: `repo:mrbalraj007/Terraform-Drift-Detection:environment:dev` |
+| Step 4      | Creates the federated credential via `az ad app federated-credential create` |
+| Step 5      | Lists all credentials on the app so you can visually verify             |
+| Step 6      | Prints a reminder of GitHub Secrets needed and their correct values     |
+
+## For Push workflow
+`Storage Blob Data Contributor`
+Because you have `ARM_USE_AZUREAD: true` in my workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so `Storage Blob Data Contributor` is mandatory.
+
+The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
+
+`App Registration / OIDC` = Who you are (Identity)
+
+`Role Assignment on Storage Account` = What you're allowed to do (Permission)
+
+
+**Step-by-Step GUI**
+
+- Step 1 — Go to your `Storage Account`
+Azure Portal → Storage Accounts → <your-backend-storage-account>
+
+- Step 2 — `Open Access Control (IAM)`
+Click "Access Control (IAM)" in the left sidebar
+![Storage Account left menu → Access Control IAM]
+
+- Step 3 — `Add Role Assignment`
+Click "+ Add" → "Add role assignment"
++ Add
+ └─ Add role assignment   ← click this
+
+- Step 4 — Search for the Role
+On the Role tab, search for:
+`Storage Blob Data Contributor`
+Select it → click Next
+
+- Step 5 — Assign Access To
+On the `Members` tab:
+FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType `demo-github-azure-oidc-connection`
+Select it → click Select → click Next → click `Review + assign`
+
+```sh
+Azure Portal
+  └── Storage Accounts
+        └── <your-backend-storage-account>
+              └── Access Control (IAM)              ← LEFT MENU
+                    └── + Add → Add role assignment
+                          ├── Role tab
+                          │     └── Search: "Storage Blob Data Contributor" ✅
+                          └── Members tab
+                                └── Assign access to: User/group/service principal
+                                      └── Select: "demo-github-azure-oidc-connection" ✅
+```
+
 🌍 Step 3 — Create the production Environment in GitHub
 This is what creates the manual approval gate before apply runs.
 
@@ -509,100 +636,3 @@ The workflow will run and post a comment directly on the PR like this:
 Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
 
 
-need to add environment and key secret
-jobs:
-  terraform:
-    environment: dev
-Azure Federated Credential
-repo:your-org/your-repo:environment:dev
-
-
-Option 1 (Best Practice) — Add Missing Secrets
-
-Go to:
-👉 GitHub → Settings → Secrets and variables → Actions
-
-Add:
-
-Secret Name	Value Example
-BACKEND_AZURE_RESOURCE_GROUP_NAME	rg-terraform-backend
-BACKEND_AZURE_STORAGE_ACCOUNT_NAME	tfstate12345
-BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	tfstate
-
-
-Nuke Terraform Cache Completely
-bash# Remove all local Terraform cache and state lock files
-rm -rf .terraform
-rm -f .terraform.lock.hcl
-rm -f terraform.tfstate
-rm -f terraform.tfstate.backup
-
-
-# Remove the management lock first (if it exists)
-az lock delete \
-  --name tfstate-storage-lock \
-  --resource-group rg-terraform-state \
-  --resource-name tfstatemyproject001 \
-  --resource-type Microsoft.Storage/storageAccounts 2>/dev/null || echo "No lock found"
-
-# Delete the storage account
-az storage account delete \
-  --name tfstatemyproject001 \
-  --resource-group rg-terraform-state \
-  --yes
-
-# Delete the resource group
-az group delete \
-  --name rg-terraform-state \
-  --yes --no-wait
-
-az group show --name rg-terraform-state 2>/dev/null || echo "RG deleted OK"
-
-
-
-What the script does — step by step
-StepActionPre-flightChecks Azure CLI is installed and you're logged in (prompts az login if not)Step 1Resolves the Object ID of demo-github-azure-oidc-connection automaticallyStep 2Idempotency check — skips creation if the credential already existsStep 3Builds the exact OIDC subject: repo:mrbalraj007/Terraform-Drift-Detection:environment:devStep 4Creates the federated credential via az ad app federated-credential createStep 5Lists all credentials on the app so you can visually verifyStep 6Prints a reminder of GitHub Secrets needed + the correct values
-
-`Storage Blob Data Contributor`
-Because you have ARM_USE_AZUREAD: true in your workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so Storage Blob Data Contributor is mandatory.
-The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
-
-App Registration / OIDC = Who you are (Identity)
-Role Assignment on Storage Account = What you're allowed to do (Permission)
-
-
-Step-by-Step GUI
-Step 1 — Go to your Storage Account
-Azure Portal → Storage Accounts → <your-backend-storage-account>
-
-Step 2 — Open Access Control (IAM)
-Click "Access Control (IAM)" in the left sidebar
-![Storage Account left menu → Access Control IAM]
-
-Step 3 — Add Role Assignment
-Click "+ Add" → "Add role assignment"
-+ Add
- └─ Add role assignment   ← click this
-
-Step 4 — Search for the Role
-On the Role tab, search for:
-Storage Blob Data Contributor
-Select it → click Next
-
-Step 5 — Assign Access To
-On the Members tab:
-FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType demo-github-azure-oidc-connection
-Select it → click Select → click Next → click Review + assign
-
-```sh
-Azure Portal
-  └── Storage Accounts
-        └── <your-backend-storage-account>
-              └── Access Control (IAM)              ← LEFT MENU
-                    └── + Add → Add role assignment
-                          ├── Role tab
-                          │     └── Search: "Storage Blob Data Contributor" ✅
-                          └── Members tab
-                                └── Assign access to: User/group/service principal
-                                      └── Select: "demo-github-azure-oidc-connection" ✅
-```
