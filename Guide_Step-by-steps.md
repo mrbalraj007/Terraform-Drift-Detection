@@ -306,7 +306,8 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 If the output is **empty**, the role is missing — proceed to the next step.
 <br>
 
-> [!CAUTION] Use `MSYS_NO_PATHCONV=1` when running in **Git Bash**. In PowerShell, you can omit it.
+> [!CAUTION] 
+Use `MSYS_NO_PATHCONV=1` when running in **Git Bash**. In PowerShell, you can omit it.
 
 ---
 
