@@ -1,132 +1,118 @@
-name: Terraform CI/CD
-
+name: '[CHG] Terraform - Format and Validate'
+############################################################
+# Runs on push to feature branches when commit message contains '[CI]'
+# Or manual trigger (excl. main branch)
+############################################################
 on:
   push:
-    branches:
+    branches-ignore:
+      - master
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 env:
-  TF_VERSION: "1.7.0"
+  TF_LOG: DEBUG
+  TF_INPUT: false
 
 permissions:
-  id-token: write        # Required for OIDC token generation
-  contents: write        # Required to push fmt fixes back to the repo
-  pull-requests: write   # Required to post plan comments on PRs
+  id-token: write
+  contents: read
+  pull-requests: write
 
 jobs:
-  terraform:
-    name: Terraform Plan & Apply
+  terraform-analysis-dev:
+    name: 'Terraform Format and Validate'
+    strategy:
+      matrix:
+        target: [dev]
+    environment: ${{ matrix.target }}
+
+    # OS and Shell settings
     runs-on: ubuntu-latest
-    environment: dev     # ← All secrets below are stored under this GitHub Environment
+    if: contains(github.event.head_commit.message, '[CI]') || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
 
     defaults:
       run:
-        working-directory: ./
+        shell: bash
+        working-directory: "./"
 
+    # Environment variables — all ARM_ vars defined once at job level
+    env:
+      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RESOURCE_GROUP:      ${{ secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME }}
+      STORAGE_ACCOUNT:     ${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}
+      CONTAINER_NAME:      ${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}
+      ARM_USE_AZUREAD:     true
+      ARM_USE_OIDC:        true
+      TF_LOG:              INFO
+
+    #############################
+    ## STEPS
+    #############################
     steps:
-      # ------- Step 1: Checkout Code -------
-      - name: Checkout Repository
+
+      # ------- Step 1: Checkout -------
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
-      # ------- Step 2: Azure Login via OIDC -------
-      - name: Azure Login via OIDC
-        uses: azure/login@v2
-        with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      # ------- Step 3: Setup Terraform -------
+      # ------- Step 2: Setup Terraform -------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ env.TF_VERSION }}
+          terraform_version: ${{ secrets.TERRAFORM_VERSION }}
 
-      # ------- Step 4: Terraform Init (remote backend) -------
+      # ------- Step 3: Terraform Init -------
       - name: Terraform Init
+        id: init
         run: |
           terraform init \
-            -backend-config="resource_group_name=${{ secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
-            -backend-config="storage_account_name=${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
-            -backend-config="container_name=${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}"
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
+            -backend-config="storage_account_name=$STORAGE_ACCOUNT" \
+            -backend-config="container_name=$CONTAINER_NAME" \
+            -backend-config="resource_group_name=$RESOURCE_GROUP"
 
-      # ------- Step 5: Terraform Format (auto-fix & commit) -------
+      # ------- Step 4: Terraform Format (check only — no auto-fix on push) -------
       - name: Terraform Format
-        run: terraform fmt -recursive
+        id: fmt
+        if: github.ref != 'refs/heads/main'
+        run: terraform fmt -check -diff -recursive
+        continue-on-error: true
 
-      - name: Commit Terraform fmt fixes
-        run: |
-          git config --global user.name  "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add -A && git commit -m "ci: auto-fix terraform fmt" && git push)
-
-      # ------- Step 6: Terraform Validate -------
+      # ------- Step 5: Terraform Validate (runs even if fmt fails) -------
       - name: Terraform Validate
-        run: terraform validate
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
+        id: validate
+        if: github.ref != 'refs/heads/main' && (success() || failure())
+        run: terraform validate -no-color
 
-      # ------- Step 7: Terraform Plan -------
+      # ------- Step 6: Terraform Plan -------
       - name: Terraform Plan
         id: plan
-        run: terraform plan -out=tfplan
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
+        run: terraform plan -no-color -input=false -var="environment=${{ matrix.target }}" -out "${{ matrix.target }}-tfplan.out"
 
-      # ------- Step 8: Post Plan to PR Comment -------
-      - name: Post Plan to PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+      # ------- Step 7: Terraform Compliance -------
+      - name: terraform-compliance
+        uses: terraform-compliance/github_action@0.3.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Plan 📖
-            \`\`\`
-            ${{ steps.plan.outputs.stdout }}
-            \`\`\``;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
+          plan: ${{ matrix.target }}-tfplan.out
+          # features: ssh://git@github.com/terraform-compliance/user-friendly-features.git
 
-      # ------- Step 9: Upload Plan Artifact -------
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v4
+      # ------- Step 8: Checkov Security Scan (only when commit contains '[Checkov]') -------
+      - name: Checkov
+        id: checkov
+        if: contains(github.event.head_commit.message, '[Checkov]') || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
+        uses: bridgecrewio/checkov-action@v12
         with:
-          name: tfplan
-          path: tfplan
-          retention-days: 5
-
-      # ------- Step 10: Terraform Apply (main branch only) -------
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve tfplan
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
-
-      # ------- Step 11: Azure Logout -------
-      - name: Azure Logout
-        if: always()
-        run: az logout
+          quiet: true
+          framework: terraform
+          container_user: 1000
+          output_format: github_failed_only
+          log_level: INFO
+          soft_fail: false
+          external_checks_dirs: ./lib/ckv_custom_checks/
+          skip_check: >-
+            CKV_TF_1,CKV_AZURE_88,CKV_AZURE_71,CKV_AZURE_16,CKV_AZURE_80,
+            CKV_AZURE_63,CKV_AZURE_18,CKV_AZURE_65,CKV_AZURE_17,CKV_AZURE_13,
+            CKV_AZURE_78,CKV_AZURE_66,CKV_AZURE_44,CKV_AZURE_35,CKV_AZURE_43,
+            CKV_AZURE_33,CKV_AZURE_3,CKV2_AZURE_1,CKV2_AZURE_18,CKV2_AZURE_8,
+            CKV2_AZURE_21,CKV_GIT_4
