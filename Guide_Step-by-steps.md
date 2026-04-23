@@ -338,10 +338,11 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 ```shell
 az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
 ```
-> If the output is **empty**, the role is missing 
+> [!NOTE]
+If the output is **empty**, the role is missing 
 
-> [!CAUTION] MSYS_NO_PATHCONV=1 
-> we need to use `MSYS_NO_PATHCONV=1` if we are using `gitbash` else you can use powershell without it.
+> [!CAUTION] 
+MSYS_NO_PATHCONV=1, we need to use `MSYS_NO_PATHCONV=1` if we are using `gitbash` else you can use powershell without it.
 ---
 
 **Assignment Contributor role to Service Principle**
