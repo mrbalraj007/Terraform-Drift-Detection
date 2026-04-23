@@ -327,6 +327,7 @@ az account show --query '{SubscriptionID:id, Name:name}' -o json
 
 ---
 **Will create a (Service Principal)**
+
 We need to create a SP (Service Principal) via CLI
 Run this once:
 ```Shell
@@ -370,7 +371,7 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 
 
 > [!CAUTION] MSYS_NO_PATHCONV=1 
-> we need to use `MSYS_NO_PATHCONV=1` if we are using gitbash else you powershell without it.
+> we need to use `MSYS_NO_PATHCONV=1` if we are using `gitbash` else you can use powershell without it.
 
 **Assignment Contributor role to Service Principle**
 ```sh
@@ -392,7 +393,6 @@ az ad sp list \
 az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
 ```
 ---
-
 
 **Where to find these values in the Azure Portal:**
 
@@ -425,7 +425,6 @@ For SP_ID:
 | `APP_ID` | App Registrations → Your App → Overview | Application (client) ID |
 | `SP_ID` | Enterprise Applications → Your App → Overview | Object ID |
 
----
 
 ---
 > [!NOTE]
@@ -442,8 +441,7 @@ If failed then you have to give permission manually using GUI
 
 ---
 
-
-## Step 2 — Bootstrap the Backend *(Run Once, Locally)*
+## Step 2 — Configure Bckend for `tfstate` from Bootstrap folder *(Run Once, Locally)*
 
 ```bash
 cd bootstrap/
@@ -462,6 +460,166 @@ If you need to add the storage key to GitHub Secrets:
 ```bash
 terraform output -raw storage_account_key
 ```
+
+## Assign `Storage Blob Data Contributor` to storage account
+
+- For Push workflow
+`Storage Blob Data Contributor`
+Because you have `ARM_USE_AZUREAD: true` in my workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so `Storage Blob Data Contributor` is mandatory.
+
+The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
+
+`App Registration / OIDC` = Who you are (Identity)
+`Role Assignment on Storage Account` = What you're allowed to do (Permission)
+
+
+```sh
+az account show --query "{subscription:id, tenant:tenantId}" -o table
+```
+**Step To get storage account details**
+```sh
+az storage account list \
+  --query "[].{Name:name, ResourceGroup:resourceGroup, Location:location}" \
+  -o table
+```
+**Step Get the Storage Account Resource ID**
+This is mandatory for RBAC.
+```Shell
+az storage account show --name <STORAGE NAME> --resource-group <RG Name> --query id -o tsv
+```
+✅ Example output
+```Plain Text
+/subscriptions/2fc598a4-6a52-44b9-b476-6a62640513f8/resourceGroups/rg-terraform-state/providers/Microsoft.Storage/storageAccounts/mystorageacct01
+```
+Save it:
+
+```Shell
+STORAGE_SCOPE="/subscriptions/.../storageAccounts/mystorageacct01"
+```
+
+**Step 3 — Get the assignee-object-id (Service Principal)**
+If you know the App (Client) ID:
+```Shell
+az ad sp show --id <APP_CLIENT_ID> --query id -o tsv
+```
+✅ For my case (example)
+```Plain Text
+Service Principal Object ID:7268b9bc-df91-4ca9-8596-50bcc4cfe56e
+```
+Save it:
+```Plain Text
+SP_OBJECT_ID="7268b9bc-df91-4ca9-8596-50bcc4cfe56e"
+```
+
+
+**Step 4 — Assign Storage Blob Data Contributor**
+⚠️ IMPORTANT (Git‑Bash USERS)
+You MUST disable MSYS path conversion because the scope contains /.
+
+✅ WORKING COMMAND (Git‑Bash safe)
+```Shell
+MSYS_NO_PATHCONV=1 az role assignment create --assignee-object-id "$SP_OBJECT_ID" --assignee-principal-type ServicePrincipal --role "Storage Blob Data Contributor" --scope "$STORAGE_SCOPE"
+```
+✅ **Step 5 — Verify the Assignment**
+```Shell
+MSYS_NO_PATHCONV=1 az role assignment list --assignee-object-id "$SP_OBJECT_ID" --scope "$STORAGE_SCOPE" -o table
+```
+✅ Expected result
+```Plain Text
+Storage Blob Data Contributor   /subscriptions/.../storageAccounts/mystorageacct01
+```
+
+**Step-by-Step GUI**
+
+- Step 1 — Go to your `Storage Account`
+Azure Portal → Storage Accounts → <your-backend-storage-account>
+
+- Step 2 — `Open Access Control (IAM)`
+Click "Access Control (IAM)" in the left sidebar
+![Storage Account left menu → Access Control IAM]
+
+- Step 3 — `Add Role Assignment`
+Click "+ Add" → "Add role assignment"
++ Add
+ └─ Add role assignment   ← click this
+
+- Step 4 — Search for the Role
+On the Role tab, search for:
+`Storage Blob Data Contributor`
+Select it → click Next
+
+- Step 5 — Assign Access To
+On the `Members` tab:
+FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType `demo-github-azure-oidc-connection`
+Select it → click Select → click Next → click `Review + assign`
+
+```sh
+Azure Portal
+  └── Storage Accounts
+        └── <your-backend-storage-account>
+              └── Access Control (IAM)              ← LEFT MENU
+                    └── + Add → Add role assignment
+                          ├── Role tab
+                          │     └── Search: "Storage Blob Data Contributor" ✅
+                          └── Members tab
+                                └── Assign access to: User/group/service principal
+                                      └── Select: "demo-github-azure-oidc-connection" ✅
+```
+
+**Add Missing Storage Secrets into environment**
+
+Go to:
+👉 GitHub → Settings → Environment → Secrets → Actions
+
+Add:
+Secret Name	Value Example
+BACKEND_AZURE_RESOURCE_GROUP_NAME	`Your Resource Group Name`
+BACKEND_AZURE_STORAGE_ACCOUNT_NAME	`tfstate12345`
+BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	`tfstate`
+
+or run the following script
+```bash
+chmod +x 01.create-backend-secrets.sh
+
+# run the following command
+./01.create-backend-secrets.sh your-repo/Terraform-Drift-Detection dev
+```
+Expected Outcome:
+```sh
+./01.create-backend-secrets.sh your-repo/Terraform-Drift-Detection dev
+✅ Repo: your-repo/Terraform-Drift-Detection
+✅ Environment: dev
+✅ Resource Group: rg-terraform-state
+✅ Storage Account: tfstatemyproject002
+✅ Container: tfstate
+✓ Set Actions secret BACKEND_AZURE_RESOURCE_GROUP_NAME for your-repo/Terraform-Drift-Detection
+✓ Set Actions secret BACKEND_AZURE_STORAGE_ACCOUNT_NAME for your-repo/Terraform-Drift-Detection
+✓ Set Actions secret BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME for your-repo/Terraform-Drift-Detection
+🎉 Secrets successfully created in environment 'dev' for repo: your-repo/Terraform-Drift-Detection
+```
+![alt text](image-20.png)
+![alt text](image-21.png)
+
+**To list down all seceret from environment using CLI**
+```sh
+gh secret list --env dev --repo your-repo/Terraform-Drift-Detection
+
+# Outcomes
+NAME                                          UPDATED            
+AZURE_CLIENT_ID                               about 1 hour ago
+AZURE_SUBSCRIPTION_ID                         about 1 hour ago
+AZURE_TENANT_ID                               about 1 hour ago
+BACKEND_AZURE_RESOURCE_GROUP_NAME             about 5 minutes ago
+BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME  about 5 minutes ago
+BACKEND_AZURE_STORAGE_ACCOUNT_NAME            about 5 minutes ago
+```
+<!-- **Nuke Terraform Cache Completely**
+bash# Remove all local Terraform cache and state lock files
+rm -rf .terraform
+rm -f .terraform.lock.hcl
+rm -f terraform.tfstate
+rm -f terraform.tfstate.backup -->
+---
 
 ### Step 2.2 — Push Infra Code to GitHub
 
@@ -661,10 +819,10 @@ terraform destroy --auto-approve
 
 ```sh
 # Preview only — no changes made
-./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev --dry-run
+./delete-oidc-app.sh demo-github-azure-oidc-connection your-repo/Terraform-Drift-Detection dev --dry-run
 
 # Normal delete
-./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev
+./delete-oidc-app.sh demo-github-azure-oidc-connection your-repo/Terraform-Drift-Detection dev
 ```
 ---
 
@@ -682,35 +840,6 @@ terraform destroy --auto-approve
 
 
 
-
-
-**Add Missing Secrets**
-
-Go to:
-👉 GitHub → Settings → Secrets and variables → Actions
-
-Add:
-
-Secret Name	Value Example
-BACKEND_AZURE_RESOURCE_GROUP_NAME	`rg-terraform-backend`
-BACKEND_AZURE_STORAGE_ACCOUNT_NAME	`tfstate12345`
-BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	`tfstate`
-
-or run the following script
-```bash
-chmod +x 01.create-backend-secrets.sh
-
-# run the following command
-./create-backend-secrets.sh mrbalraj007/Terraform-Drift-Detection dev
-```
-
-
-**Nuke Terraform Cache Completely**
-bash# Remove all local Terraform cache and state lock files
-rm -rf .terraform
-rm -f .terraform.lock.hcl
-rm -f terraform.tfstate
-rm -f terraform.tfstate.backup
 
 <!-- 
 # Remove the management lock first (if it exists)
@@ -755,58 +884,11 @@ chmod +x 02.add-federated-credential
 | Pre-flight  | Checks Azure CLI is installed and you're logged in (prompts `az login` if not) |
 | Step 1      | Resolves the Object ID of `demo-github-azure-oidc-connection` automatically |
 | Step 2      | Idempotency check — skips creation if the credential already exists     |
-| Step 3      | Builds the exact OIDC subject: `repo:mrbalraj007/Terraform-Drift-Detection:environment:dev` |
+| Step 3      | Builds the exact OIDC subject: `repo:your-repo/Terraform-Drift-Detection:environment:dev` |
 | Step 4      | Creates the federated credential via `az ad app federated-credential create` |
 | Step 5      | Lists all credentials on the app so you can visually verify             |
 | Step 6      | Prints a reminder of GitHub Secrets needed and their correct values     |
 
-## For Push workflow
-`Storage Blob Data Contributor`
-Because you have `ARM_USE_AZUREAD: true` in my workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so `Storage Blob Data Contributor` is mandatory.
-
-The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
-
-`App Registration / OIDC` = Who you are (Identity)
-
-`Role Assignment on Storage Account` = What you're allowed to do (Permission)
-
-
-**Step-by-Step GUI**
-
-- Step 1 — Go to your `Storage Account`
-Azure Portal → Storage Accounts → <your-backend-storage-account>
-
-- Step 2 — `Open Access Control (IAM)`
-Click "Access Control (IAM)" in the left sidebar
-![Storage Account left menu → Access Control IAM]
-
-- Step 3 — `Add Role Assignment`
-Click "+ Add" → "Add role assignment"
-+ Add
- └─ Add role assignment   ← click this
-
-- Step 4 — Search for the Role
-On the Role tab, search for:
-`Storage Blob Data Contributor`
-Select it → click Next
-
-- Step 5 — Assign Access To
-On the `Members` tab:
-FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType `demo-github-azure-oidc-connection`
-Select it → click Select → click Next → click `Review + assign`
-
-```sh
-Azure Portal
-  └── Storage Accounts
-        └── <your-backend-storage-account>
-              └── Access Control (IAM)              ← LEFT MENU
-                    └── + Add → Add role assignment
-                          ├── Role tab
-                          │     └── Search: "Storage Blob Data Contributor" ✅
-                          └── Members tab
-                                └── Assign access to: User/group/service principal
-                                      └── Select: "demo-github-azure-oidc-connection" ✅
-```
 
 🌍 Step 3 — Create the production Environment in GitHub
 This is what creates the manual approval gate before apply runs.
@@ -842,7 +924,7 @@ The workflow will run and post a comment directly on the PR like this:
 ## Terraform Plan Summary 📋
 | Detail      | Value                  |
 |-------------|------------------------|
-| Repository  | mrbalraj007/...        |
+| Repository  | your-repo/...        |
 | Branch      | feature/test-workflow  |
 | ...                                  |
 
@@ -881,7 +963,7 @@ Shellgit fetch --pruneShow more lines
 This cleans up deleted remote branches.
 
 
-gh secret list --env dev --repo mrbalraj007/Terraform-Drift-Detection
+
 
 GitHub SecretValue from AzureAZURE_CLIENT_IDApp Registration Application (client) IDAZURE_TENANT_IDEntra ID Tenant IDAZURE_SUBSCRIPTION_IDAzure Subscription ID
 
