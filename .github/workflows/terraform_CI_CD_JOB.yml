@@ -20,10 +20,17 @@ jobs:
   terraform:
     name: Terraform Plan & Apply
     runs-on: ubuntu-latest
-    environment: dev            # ← Unlocks all secrets stored under the "dev" environment
+    environment: dev
     defaults:
       run:
         working-directory: ./
+
+    # ✅ Declared once here — inherited by every step that runs terraform/az CLI
+    env:
+      ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+      ARM_USE_OIDC:        "true"
 
     steps:
       # ------- Step 1: Checkout Code -------
@@ -54,11 +61,6 @@ jobs:
             -backend-config="resource_group_name=${{ secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME }}" \
             -backend-config="storage_account_name=${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}"
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
 
       # ------- Step 5: Terraform Format (auto-fix & commit) -------
       - name: Terraform Format
@@ -73,21 +75,11 @@ jobs:
       # ------- Step 6: Terraform Validate -------
       - name: Terraform Validate
         run: terraform validate
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
 
       # ------- Step 7: Terraform Plan -------
       - name: Terraform Plan
         id: plan
         run: terraform plan -out=tfplan
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
 
       # ------- Step 8: Post Plan to PR Comment -------
       - name: Post Plan to PR
@@ -119,11 +111,6 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve tfplan
-        env:
-          ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC:        "true"
 
       # ------- Step 11: Azure Logout -------
       - name: Azure Logout
