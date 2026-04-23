@@ -521,7 +521,8 @@ Expected:
 Storage Blob Data Contributor   /subscriptions/.../storageAccounts/mystorageacct01
 ```
 ---
-details>
+
+<details>
 <summary><b>🖥️ GUI Alternative — Assign via Azure Portal</b></summary>
 <br>
 
