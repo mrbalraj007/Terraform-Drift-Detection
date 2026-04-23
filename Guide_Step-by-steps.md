@@ -167,12 +167,7 @@ total 20
 > [!NOTE]
 > *You need to run the above command in bash terminal.*
 
-
-> [!IMPORTANT]
-
-
-
-When you run the above command then it will ask you the following thing
+You will see the following output from command.
   
 ```sh
 ./oidc.sh demo-github-azure-oidc-connection yourrepo/Terraform-Drift-Detection ./fics.json dev
@@ -296,19 +291,17 @@ The following secrets were created under environment 'dev' in repo 'yourrepo/Ter
   AZURE_TENANT_ID                XXXXXXXXXXXXXXXXXXXXXX
 
 View your App Registration in Azure Portal:
-  https://ms.portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/XXXXXXXXXXXXXXXXXXXXXX                                                                               ```                                                                      
-
-
-
+  https://ms.portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/XXXXXXXXXXXXXXXXXXXXXX
+```                                                                 
 - Verify the `Repository secrets` and you will notice that secerts already been configured.
 
-  - Repo > Settings >secrets and variables >Actions 
+  - Repo > Settings > Environments >dev 
+![alt text](image-18.png)
   
-<img width="1467" height="874" alt="Image" src="https://github.com/user-attachments/assets/e1fed238-cc18-4d48-b3d4-24d02fe721f6" />
-
-
-
-### Useful Azure CLI Commands
+  - Click on environment and you will see secrets
+ ![alt text](image-19.png)
+---
+<details><summary><b>Useful Azure CLI Commands</b></summary><br>
 
 **Get your Subscription ID:**
 ```bash
@@ -329,45 +322,77 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 ```bash
 az account show --query '{SubscriptionID:id, Name:name}' -o json
 ```
+<br>
+</details>
 
-<!-- **Get SP_ID, APP_ID, and SUB_ID in one shot:**
-```bash
-az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
-  --query "[].{SP_ID:id, APP_ID:appId}" -o table && \
-  az account show --query "{SUB_ID:id}" -o table
-``` -->
+---
+**Will create a (Service Principal)**
+We need to create a SP (Service Principal) via CLI
+Run this once:
+```Shell
+az ad sp create --id <AZURE_CLIENT_ID>
+```
+Where <AZURE_CLIENT_ID> is:
+```Shell
+az ad app list --display-name demo-github-azure-oidc-connection --query "[].appId" -o tsv
+```
+**To Verify Serice account**
+```sh
+az ad sp list --filter "appId eq '<AZURE_CLIENT_ID>'" -o table
+```
 
-**Get Object ID — CLI & GUI**
-- Via CLI
 
-**By App Name**
-```bash
-az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
-  --query "[].{ObjectID:id, AppID:appId, Name:displayName}" \
+**To delete Serice account**
+```sh
+az ad sp delete --id <AZURE_CLIENT_ID>
+```
+**To Verify Serice account**
+```sh
+az ad sp list --filter "appId eq '<AZURE_CLIENT_ID>'" -o table
+```
+
+**Confirm Service Principal Exists**
+```sh
+az ad sp list --display-name "demo-github-azure-oidc-connection" -o table
+```
+**Confirm Role Assignment**
+
+```Shell
+MSYS_NO_PATHCONV=1 az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
+
+# To get `SP_OBJECT_ID`
+az ad app list --display-name demo-github-azure-oidc-connection --query "[].appId" -o tsv
+
+# To get `SUB_ID`
+az account list --query '[].{Name:name, ID:id, State:state}' -o table
+```
+> If the output is **empty**, the role is missing — proceed to Step 1.3.
+
+
+> [!CAUTION] MSYS_NO_PATHCONV=1 
+> we need to use `MSYS_NO_PATHCONV=1` if we are using gitbash else you powershell without it.
+
+**Assignment Contributor role to Service Principle**
+```sh
+MSYS_NO_PATHCONV=1 az role assignment create \
+  --assignee-object-id <SP_OBJECT_ID> \
+  --assignee-principal-type ServicePrincipal \
+  --role Contributor \
+  --scope /subscriptions/<SUB_ID>
+
+# To get <SP_OBJECT_ID>
+az ad sp list \
+  --filter "appId eq '4acf655a-0323-41bf-9223-b7ba713832e8'" \
+  --query "[0].{SP_ObjectId:id, AppId:appId, DisplayName:displayName}" \
   -o table
 ```
 
-
-**Via GUI (Azure Portal)**
-```sh
-portal.azure.com
-  └── Search → "Enterprise Applications"
-        └── Search: demo-github-azure-oidc-connection
-              └── Overview
-                    └── Object ID  ← Copy this ✅
-```                    
+**Verify Role Assignment**
+```Shell
+az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
+```
 ---
 
-## Step 1 — Manually Assign the Contributor Role (CLI)
-
-Run the following steps in Git Bash (or any terminal with Azure CLI installed).
-
-### Step 1.1 — Set Your Known Values
-
-```bash
-SP_ID="a778aa7b-f9e2XXXX"  # Finding SUB_ID (Subscription ID)
-SUB_ID="2fc598a4-XXXX"     # Finding SP_ID (Service Principal Object ID)
-```
 
 **Where to find these values in the Azure Portal:**
 
@@ -402,29 +427,7 @@ For SP_ID:
 
 ---
 
-### Step 1.2 — Check if a Role Assignment Already Exists
-
-```bash
-az role assignment list \
-  --assignee $SP_ID \
-  --subscription $SUB_ID \
-  --query "[].{Role:roleDefinitionName, Scope:scope}" \
-  -o table
-```
-
-> If the output is **empty**, the role is missing — proceed to Step 1.3.
-
 ---
-
-### Step 1.3 — Assign the Contributor Role
-
-```bash
-az role assignment create \
-  --role contributor \
-  --subscription $SUB_ID \
-  --assignee-object-id $SP_ID \
-  --assignee-principal-type ServicePrincipal
-```
 > [!NOTE]
 If failed then you have to give permission manually using GUI
 
@@ -439,18 +442,6 @@ If failed then you have to give permission manually using GUI
 
 ---
 
-### Step 1.4 — Quick Verification Command
-```bash
-az role assignment list \
-  --assignee $SP_ID \
-  --subscription $SUB_ID \
-  --query "[].{Role:roleDefinitionName, Scope:scope}" \
-  -o table
-```
----
-
-
----
 
 ## Step 2 — Bootstrap the Backend *(Run Once, Locally)*
 
@@ -901,44 +892,6 @@ echo "SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
 ```
 
 
-Fix Option 1 (Fastest): Create Service Principal via CLI
-Run this once:
-```Shell
-az ad sp create --id <AZURE_CLIENT_ID>
-```
-Where <AZURE_CLIENT_ID> is:
-```Shell
-az ad app list --display-name demo-github-azure-oidc-connection --query "[].appId" -o tsv
-```
-✅ This immediately fixes the login error.
-
-To delete 
-```sh
-az ad sp delete --id <AZURE_CLIENT_ID>
-```
-To Verify
-```sh
-az ad sp list --filter "appId eq '<AZURE_CLIENT_ID>'" -o table
-```
-
-Confirm Service Principal Exists
-```sh
-az ad sp list --display-name demo-github-azure-oidc-connection -o table
-```
-FIX (Authoritative)
-```sh
-MSYS_NO_PATHCONV=1 az role assignment create \
-  --assignee-object-id b3e69e8b-5c06-4606-aa43-94797a539f2d \
-  --assignee-principal-type ServicePrincipal \
-  --role Contributor \
-  --scope /subscriptions/2fc598a4-6a52-44b9-b476-6a62640513f8
-```
-
-**Confirm Role Assignment**
-
-```Shell
-az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
-```
 
 
 
