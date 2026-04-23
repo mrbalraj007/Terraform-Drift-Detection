@@ -31,3 +31,9 @@ variable "tags" {
     Project     = "Terraform-Drift-Detection"
   }
 }
+
+variable "environment" {
+  description = "Deployment environment name"
+  type        = string
+  default     = "dev"
+}
