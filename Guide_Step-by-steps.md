@@ -20,6 +20,52 @@
 ---
 
 ## Prerequisites
+1. **Required Tools (Install First)**
+
+- BEFORE YOU RUN THE SCRIPT (VERY IMPORTANT)
+- You MUST have these installed locally:
+   - Azure CLI
+        ```Shell
+        az version
+        ```
+      - If not installed: 👉 https://learn.microsoft.com/cli/azure/install-azure-cli
+
+  - GitHub CLI
+      ```Shell
+      gh --version
+      ```
+    - If not installed: 👉 https://cli.github.com/
+
+  - jq
+    ```Shell
+    jq --version
+    ```
+  - If not installed: 👉 https://stedolan.github.io/jq/download/
+
+2. **Azure Permissions You Need**
+Your Azure user must have:
+
+- Owner or User Access Administrator on the subscription
+Permission to create App registrations
+
+Permission to Check:
+```Shell
+az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) -o table
+```
+
+
+3. **GitHub Permissions You Need:** You must have `Admin access` to the repo:
+`yourrepo/Terraform-Drift-Detection`
+
+And you must be logged in:
+```Shell
+gh auth status
+```
+
+If not:
+```Shell
+gh auth login
+```
 
 Before anything else, get these three things in place:
 - [Terraform CLI](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli) must be installed
@@ -28,41 +74,234 @@ Before anything else, get these three things in place:
 - 📥 Download the [OIDC setup script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/oidc.sh)
 - 📥 Download [fics.json](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/fics.json)
 
-- **Command to configure OIDC**
+
+4. update **fics.json** file (Example – REQUIRED)
+Create `fics.json` before running the script:
+```json
+
+[
+  {
+    "name": "github-dev-env",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:your repo/Terraform-Drift-Detection:environment:dev",
+    "audiences": [
+      "api://AzureADTokenExchange"
+    ]
+  }
+]
+
+```
+👉 This must match your GitHub Actions environment name (`dev`).
+
+## Project Structure
+
+```
+
+└── .github/
+    └── workflows/
+        ├── terraform_CI_CD_JOB.yml                # ✅ CI/CD — Plan on PR, Apply on merge
+        ├── Terraform - Format and Validate.yml    # ✅ Push and Pull
+│       ├── destroy_resources.yml                  # ✅ To destroy the environment/resources 
+│       └── drift-detection.yml                    # ✅ NEW — Nightly drift check + GitHub Issues
+        └── Dummy_Azure_login_validate.yml         # ✅ For dummy azue login testing
+        └── TBT-With_MSTeam_drift-detection.ps1    # ✅ Will test it when MS Team issue fixed
+
+
+TERRAFORM-DRIFT-DETECTION/
+│
+├── .github/
+│   ├── workflows/
+│   │   ├── drift-detection.txt
+│   │   ├── Dummy_Azure_login_validate.yml
+│   │   ├── TBT-With_MSTeam_drift-detection.ps1
+│   │   ├── terraform_CI_CD_JOB.txt
+│   │   └── terraform_push_scan.txt
+│   │
+│   └── pull_request_template.md  # ✅ For pull template
+│
+├── All_ScreenShot/
+│
+├── bootstrap/
+│   ├── main.tf      # ✅ Creates the storage backend resources
+│   ├── output.tf
+│   └── variables.tf
+│
+├── Dont_Use_it/
+│
+├── OIDC_Setup_Script/
+│   ├── delete-oidc-app.sh  # ✅ To delete a OIDC connection 
+│   ├── fics.json           # ✅ To create a file and connection
+│   └── oidc.sh             # ✅ To create a OIDC connection     
+│
+├── .gitignore                  # ✅ To ignore files 
+├── 01.create-backend-secrets.sh # ✅ To create storage and backend container secret in environment
+├── backend.tf                   # ✅ To use the backend store tfstate file 
+├── Git_GitHub_Complete_Notes.docx
+├── Guide_Step-by-steps.md
+├── main.tf                 # ✅ NEW — NSG + Resource Group
+├── outputs.tf              # ✅ NEW — Useful outputs
+├── providers.tf             # ✅ NEW — AzureRM provider
+├── Terraform-Azure-Full-Architecture.drawio
+└── variables.tf            # ✅ NEW — All configurable values
+```
+
+- **How to configure OIDC**
+
 ```sh
-./oidc.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
+$ cd OIDC_Setup_Script/
+
+$$ ls -l
+total 20
+-rwxr-xr-x 1 Administrator 197121 5458 Apr 23 08:18 delete-oidc-app.sh*
+-rw-r--r-- 1 Administrator 197121 1134 Apr 23 08:18 fics.json
+-rwxr-xr-x 1 Administrator 197121 7407 Apr 23 11:02 oidc.sh*
+
+# TO configure OIDC
+./oidc.sh demo-github-azure-oidc-connection yourrepo/Terraform-Drift-Detection ./fics.json dev
 
 # - `APP_NAME` — the Azure AD application name
 # - `REPO` — your GitHub repo in `ORG/REPO` format
-
+# - dev - environment name
 ```
-> [!CAUTION]
-*You need to run the above command `twice a time` in terminal.*
 
-> When you run the above command then it will ask you the following thing
+> [!NOTE]
+> *You need to run the above command in bash terminal.*
+
+You will see the following output from command.
   
-      ```sh
-      Logging into GitHub CLI...
-      ? Where do you use GitHub? GitHub.com                                                                                                                                                                                
-      ? What is your preferred protocol for Git operations on this host? HTTPS                                                                                                                                                  
-      ? Authenticate Git with your GitHub credentials? Yes                                                                                                                                                                      
-      ? How would you like to authenticate GitHub CLI? Login with a web browser                                                                                                                                                 
-                                                                                                                                                                                    ! First copy your one-time code: 25EE-C65B                                                                                                                                                                                
-      Press Enter to open https://github.com/login/device in your browser...                                                                              ```                                                                      
-<img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/c6ec7de8-d44c-404a-bd99-4f0aab449597" />
+```sh
+./oidc.sh demo-github-azure-oidc-connection yourrepo/Terraform-Drift-Detection ./fics.json dev
+==============================================
+ Azure OIDC + GitHub Environment Secret Setup
+==============================================
+App Name    : demo-github-azure-oidc-connection
+Repo        : yourrepo/Terraform-Drift-Detection
+FICS File   : /c/Users/Administrator/Terraform-Drift-Detection/OIDC_Setup_Script/fics.json
+Environment : dev
+==============================================
 
-<img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/3f1a5a65-be1e-4c25-a906-4e1595974f0e" />
+[Azure] Checking login status...
+[Azure] Active subscription: [
+  "XXXXXXXXXXXXXXXXXXXXXX",
+  "DevOpsLearning"
+]
+Do you want to use the above subscription? (Y/n) Y
 
-It will looks like that
-<img width="1202" height="760" alt="Image" src="https://github.com/user-attachments/assets/bf59c905-4c21-4559-ae4a-d39779d19fe3" />
+[Azure] Fetching Subscription Id...
+  SUB_ID: XXXXXXXXXXXXXXXXXXXXXX
+[Azure] Fetching Tenant Id...
+  TENANT_ID: XXXXXXXXXXXXXXXXXXXXXX
 
+[Azure] Configuring App Registration...
+  Creating new AD app: demo-github-azure-oidc-connection...
+  Sleeping 30s for app provisioning...
+  APP_ID: 4acf655a-0323-41bf-9223-b7ba713832e8
+
+[Azure] Creating Federated Identity Credentials...
+  Creating FIC 'prfic' with subject 'repo:yourrepo/Terraform-Drift-Detection:pull_request'...
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications('51977656-b409-49c7-a6d3-a9e7ca168c18')/federatedIdentityCredentials/$entity",
+  "audiences": [
+    "api://AzureADTokenExchange"
+  ],
+  "description": "pr",
+  "id": "4a8ce028-7e56-4535-822e-ea66ad04f116",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "name": "prfic",
+  "subject": "repo:yourrepo/Terraform-Drift-Detection:pull_request"
+}
+  Creating FIC 'mainfic' with subject 'repo:yourrepo/Terraform-Drift-Detection:ref:refs/heads/main'...
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications('51977656-b409-49c7-a6d3-a9e7ca168c18')/federatedIdentityCredentials/$entity",
+  "audiences": [
+    "api://AzureADTokenExchange"
+  ],
+  "description": "main",
+  "id": "cb99e6b5-ede0-4f15-9bf9-66bec06c0232",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "name": "mainfic",
+  "subject": "repo:yourrepo/Terraform-Drift-Detection:ref:refs/heads/main"
+}
+  Creating FIC 'masterfic' with subject 'repo:yourrepo/Terraform-Drift-Detection:ref:refs/heads/master'...
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications('51977656-b409-49c7-a6d3-a9e7ca168c18')/federatedIdentityCredentials/$entity",
+  "audiences": [
+    "api://AzureADTokenExchange"
+  ],
+  "description": "master",
+  "id": "8691fb0d-c278-424c-b74a-2513ab45e9e9",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "name": "masterfic",
+  "subject": "repo:yourrepo/Terraform-Drift-Detection:ref:refs/heads/master"
+}
+  Creating FIC 'envfic-dev' with subject 'repo:yourrepo/Terraform-Drift-Detection:environment:dev'...
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#applications('51977656-b409-49c7-a6d3-a9e7ca168c18')/federatedIdentityCredentials/$entity",
+  "audiences": [
+    "api://AzureADTokenExchange"
+  ],
+  "description": "environment-dev",
+  "id": "6c2ffb95-8bc2-45aa-91a8-04bcebbb1259",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "name": "envfic-dev",
+  "subject": "repo:yourrepo/Terraform-Drift-Detection:environment:dev"
+}
+
+[GitHub] Logging into GitHub CLI...
+github.com
+  ✓ Logged in to github.com account yourrepo (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+
+[GitHub] Creating environment 'dev' in repo 'yourrepo/Terraform-Drift-Detection'...
+{
+  "id": 14474572144,
+  "node_id": "EN_kwDOSF-e-s8AAAADXsBxcA",
+  "name": "dev",
+  "url": "https://api.github.com/repos/yourrepo/Terraform-Drift-Detection/environments/dev",
+  "html_url": "https://github.com/yourrepo/Terraform-Drift-Detection/deployments/activity_log?environments_filter=dev",
+  "created_at": "2026-04-23T02:02:36Z",
+  "updated_at": "2026-04-23T02:02:36Z",
+  "can_admins_bypass": true,
+  "protection_rules": [],
+  "deployment_branch_policy": null
+}
+  Environment 'dev' ready.
+
+[GitHub] Setting secrets in environment 'dev'...
+✓ Set Actions secret AZURE_CLIENT_ID for yourrepo/Terraform-Drift-Detection
+  ✔ AZURE_CLIENT_ID set
+✓ Set Actions secret AZURE_SUBSCRIPTION_ID for yourrepo/Terraform-Drift-Detection
+  ✔ AZURE_SUBSCRIPTION_ID set
+✓ Set Actions secret AZURE_TENANT_ID for yourrepo/Terraform-Drift-Detection
+  ✔ AZURE_TENANT_ID set
+
+==============================================
+ Setup Complete!
+==============================================
+
+The following secrets were created under environment 'dev' in repo 'yourrepo/Terraform-Drift-Detection':
+
+  Secret Name                    Value
+  ----------                     -----
+  AZURE_CLIENT_ID                XXXXXXXXXXXXXXXXXXXXXX
+  AZURE_SUBSCRIPTION_ID          XXXXXXXXXXXXXXXXXXXXXX
+  AZURE_TENANT_ID                XXXXXXXXXXXXXXXXXXXXXX
+
+View your App Registration in Azure Portal:
+  https://ms.portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/XXXXXXXXXXXXXXXXXXXXXX
+```                                                                 
 - Verify the `Repository secrets` and you will notice that secerts already been configured.
 
-  - Repo > Settings >secrets and variables >Actions 
+  - Repo > Settings > Environments >dev 
+![alt text](image-18.png)
   
-<img width="1467" height="874" alt="Image" src="https://github.com/user-attachments/assets/e1fed238-cc18-4d48-b3d4-24d02fe721f6" />
-
-### Useful Azure CLI Commands
+  - Click on environment and you will see secrets
+ ![alt text](image-19.png)
+---
+<details><summary><b>Useful Azure CLI Commands</b></summary><br>
 
 **Get your Subscription ID:**
 ```bash
@@ -83,45 +322,77 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 ```bash
 az account show --query '{SubscriptionID:id, Name:name}' -o json
 ```
+<br>
+</details>
 
-<!-- **Get SP_ID, APP_ID, and SUB_ID in one shot:**
-```bash
-az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
-  --query "[].{SP_ID:id, APP_ID:appId}" -o table && \
-  az account show --query "{SUB_ID:id}" -o table
-``` -->
+---
+**Will create a (Service Principal)**
 
-**Get Object ID — CLI & GUI**
-- Via CLI
+We need to create a SP (Service Principal) via CLI
+Run this once:
+```Shell
+az ad sp create --id <AZURE_CLIENT_ID>
+```
+Where <AZURE_CLIENT_ID> is:
+```Shell
+az ad app list --display-name demo-github-azure-oidc-connection --query "[].appId" -o tsv
+```
+**To Verify Serice account**
+```sh
+az ad sp list --filter "appId eq '<AZURE_CLIENT_ID>'" -o table
+```
 
-**By App Name**
-```bash
-az ad sp list --filter "displayName eq 'demo-github-azure-oidc-connection'" \
-  --query "[].{ObjectID:id, AppID:appId, Name:displayName}" \
+
+**To delete Serice account**
+```sh
+az ad sp delete --id <AZURE_CLIENT_ID>
+```
+**To Verify Serice account**
+```sh
+az ad sp list --filter "appId eq '<AZURE_CLIENT_ID>'" -o table
+```
+
+**Confirm Service Principal Exists**
+```sh
+az ad sp list --display-name "demo-github-azure-oidc-connection" -o table
+```
+**Confirm Role Assignment**
+
+```Shell
+MSYS_NO_PATHCONV=1 az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
+
+# To get `SP_OBJECT_ID`
+az ad app list --display-name demo-github-azure-oidc-connection --query "[].appId" -o tsv
+
+# To get `SUB_ID`
+az account list --query '[].{Name:name, ID:id, State:state}' -o table
+```
+> If the output is **empty**, the role is missing — proceed to Step 1.3.
+
+
+> [!CAUTION] MSYS_NO_PATHCONV=1 
+> we need to use `MSYS_NO_PATHCONV=1` if we are using `gitbash` else you can use powershell without it.
+
+**Assignment Contributor role to Service Principle**
+```sh
+MSYS_NO_PATHCONV=1 az role assignment create \
+  --assignee-object-id <SP_OBJECT_ID> \
+  --assignee-principal-type ServicePrincipal \
+  --role Contributor \
+  --scope /subscriptions/<SUB_ID>
+
+# To get <SP_OBJECT_ID>
+az ad sp list \
+  --filter "appId eq '4acf655a-0323-41bf-9223-b7ba713832e8'" \
+  --query "[0].{SP_ObjectId:id, AppId:appId, DisplayName:displayName}" \
   -o table
 ```
 
-
-**Via GUI (Azure Portal)**
-```sh
-portal.azure.com
-  └── Search → "Enterprise Applications"
-        └── Search: demo-github-azure-oidc-connection
-              └── Overview
-                    └── Object ID  ← Copy this ✅
-```                    
----
-
-## Step 1 — Manually Assign the Contributor Role (CLI)
-
-Run the following steps in Git Bash (or any terminal with Azure CLI installed).
-
-### Step 1.1 — Set Your Known Values
-
-```bash
-SP_ID="a778aa7b-f9e2XXXX"  # Finding SUB_ID (Subscription ID)
-SUB_ID="2fc598a4-XXXX"     # Finding SP_ID (Service Principal Object ID)
+**Verify Role Assignment**
+```Shell
+az role assignment list --assignee <SP_OBJECT_ID> --scope /subscriptions/<SUB_ID> -o table
 ```
+---
 
 **Where to find these values in the Azure Portal:**
 
@@ -154,31 +425,8 @@ For SP_ID:
 | `APP_ID` | App Registrations → Your App → Overview | Application (client) ID |
 | `SP_ID` | Enterprise Applications → Your App → Overview | Object ID |
 
----
-
-### Step 1.2 — Check if a Role Assignment Already Exists
-
-```bash
-az role assignment list \
-  --assignee $SP_ID \
-  --subscription $SUB_ID \
-  --query "[].{Role:roleDefinitionName, Scope:scope}" \
-  -o table
-```
-
-> If the output is **empty**, the role is missing — proceed to Step 1.3.
 
 ---
-
-### Step 1.3 — Assign the Contributor Role
-
-```bash
-az role assignment create \
-  --role contributor \
-  --subscription $SUB_ID \
-  --assignee-object-id $SP_ID \
-  --assignee-principal-type ServicePrincipal
-```
 > [!NOTE]
 If failed then you have to give permission manually using GUI
 
@@ -193,41 +441,7 @@ If failed then you have to give permission manually using GUI
 
 ---
 
-### Step 1.4 — Quick Verification Command
-```bash
-az role assignment list \
-  --assignee $SP_ID \
-  --subscription $SUB_ID \
-  --query "[].{Role:roleDefinitionName, Scope:scope}" \
-  -o table
-```
----
-
-## Project Structure
-
-```
-├── bootstrap/
-│   ├── main.tf          # Creates the storage backend resources
-│   ├── outputs.tf
-│   └── variables.tf
-├── backend.tf           # ✅ Already exists (unchanged)
-├── main.tf              # ✅ NEW — NSG + Resource Group
-├── variables.tf         # ✅ NEW — All configurable values
-├── outputs.tf           # ✅ NEW — Useful outputs
-├── providers.tf         # ✅ NEW — AzureRM provider
-└── .github/
-    └── workflows/
-        ├── terraform_CI_CD_JOB.yml                # ✅ CI/CD — Plan on PR, Apply on merge
-        ├── Terraform - Format and Validate.yml    # ✅ Push and Pull
-│       ├── destroy_resources.yml                  # ✅ To destroy the environment/resources 
-│       └── drift-detection.yml                    # ✅ NEW — Nightly drift check + GitHub Issues
-        └── Dummy_Azure_login_validate.yml         # ✅ For dummy azue login testing
-        └── TBT-With_MSTeam_drift-detection.ps1    # ✅ Will test it when MS Team issue fixed
-```
-
----
-
-## Step 2 — Bootstrap the Backend *(Run Once, Locally)*
+## Step 2 — Configure Bckend for `tfstate` from Bootstrap folder *(Run Once, Locally)*
 
 ```bash
 cd bootstrap/
@@ -246,6 +460,167 @@ If you need to add the storage key to GitHub Secrets:
 ```bash
 terraform output -raw storage_account_key
 ```
+
+## Assign `Storage Blob Data Contributor` to storage account
+
+- For Push workflow
+`Storage Blob Data Contributor`
+Because you have `ARM_USE_AZUREAD: true` in my workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so `Storage Blob Data Contributor` is mandatory.
+
+The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
+
+`App Registration / OIDC` = Who you are (Identity)
+`Role Assignment on Storage Account` = What you're allowed to do (Permission)
+
+
+```sh
+az account show --query "{subscription:id, tenant:tenantId}" -o table
+```
+**Step To get storage account details**
+```sh
+az storage account list \
+  --query "[].{Name:name, ResourceGroup:resourceGroup, Location:location}" \
+  -o table
+```
+**Step Get the Storage Account Resource ID**
+This is mandatory for RBAC.
+```Shell
+az storage account show --name <STORAGE NAME> --resource-group <RG Name> --query id -o tsv
+```
+✅ Example output
+```Plain Text
+/subscriptions/.../resourceGroups/rg-terraform-state/providers/Microsoft.Storage/storageAccounts/mystorageacct01
+```
+Save it:
+
+```Shell
+STORAGE_SCOPE="/subscriptions/.../storageAccounts/mystorageacct01"
+```
+
+**Step 3 — Get the assignee-object-id (Service Principal)**
+If you know the App (Client) ID:
+```Shell
+az ad sp show --id <APP_CLIENT_ID> --query id -o tsv
+```
+✅ For my case (example)
+```Plain Text
+Service Principal Object ID:7268b9bc-df91-4ca9-8596-50bcc4cfe56e
+```
+Save it:
+```Plain Text
+SP_OBJECT_ID="7268b9bc-df91-4ca9-8596-50bcc4cfe56e"
+```
+
+
+**Step 4 — Assign Storage Blob Data Contributor**
+
+⚠️ IMPORTANT (Git‑Bash USERS)
+You MUST disable MSYS path conversion because the scope contains /.
+
+✅ WORKING COMMAND (Git‑Bash safe)
+```Shell
+MSYS_NO_PATHCONV=1 az role assignment create --assignee-object-id "$SP_OBJECT_ID" --assignee-principal-type ServicePrincipal --role "Storage Blob Data Contributor" --scope "$STORAGE_SCOPE"
+```
+✅ **Step 5 — Verify the Assignment**
+```Shell
+MSYS_NO_PATHCONV=1 az role assignment list --assignee-object-id "$SP_OBJECT_ID" --scope "$STORAGE_SCOPE" -o table
+```
+✅ Expected result
+```Plain Text
+Storage Blob Data Contributor   /subscriptions/.../storageAccounts/mystorageacct01
+```
+<details><summary><b>Step-by-Step GUI</b></summary><br>
+
+- Step 1 — Go to your `Storage Account`
+Azure Portal → Storage Accounts → <your-backend-storage-account>
+
+- Step 2 — `Open Access Control (IAM)`
+Click "Access Control (IAM)" in the left sidebar
+![Storage Account left menu → Access Control IAM]
+
+- Step 3 — `Add Role Assignment`
+Click "+ Add" → "Add role assignment"
++ Add
+ └─ Add role assignment   ← click this
+
+- Step 4 — Search for the Role
+On the Role tab, search for:
+`Storage Blob Data Contributor`
+Select it → click Next
+
+- Step 5 — Assign Access To
+On the `Members` tab:
+FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType `demo-github-azure-oidc-connection`
+Select it → click Select → click Next → click `Review + assign`
+
+```sh
+Azure Portal
+  └── Storage Accounts
+        └── <your-backend-storage-account>
+              └── Access Control (IAM)              ← LEFT MENU
+                    └── + Add → Add role assignment
+                          ├── Role tab
+                          │     └── Search: "Storage Blob Data Contributor" ✅
+                          └── Members tab
+                                └── Assign access to: User/group/service principal
+                                      └── Select: "demo-github-azure-oidc-connection" ✅
+```
+</details>
+---
+**Add Missing Storage Secrets into environment**
+
+Go to:
+👉 GitHub → Settings → Environment → Secrets → Actions
+
+Add:
+Secret Name	Value Example
+BACKEND_AZURE_RESOURCE_GROUP_NAME	`Your Resource Group Name`
+BACKEND_AZURE_STORAGE_ACCOUNT_NAME	`tfstate12345`
+BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	`tfstate`
+
+or run the following script
+```bash
+chmod +x 01.create-backend-secrets.sh
+
+# run the following command
+./01.create-backend-secrets.sh your-repo/Terraform-Drift-Detection dev
+```
+Expected Outcome:
+```sh
+./01.create-backend-secrets.sh your-repo/Terraform-Drift-Detection dev
+✅ Repo: your-repo/Terraform-Drift-Detection
+✅ Environment: dev
+✅ Resource Group: rg-terraform-state
+✅ Storage Account: tfstatemyproject002
+✅ Container: tfstate
+✓ Set Actions secret BACKEND_AZURE_RESOURCE_GROUP_NAME for your-repo/Terraform-Drift-Detection
+✓ Set Actions secret BACKEND_AZURE_STORAGE_ACCOUNT_NAME for your-repo/Terraform-Drift-Detection
+✓ Set Actions secret BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME for your-repo/Terraform-Drift-Detection
+🎉 Secrets successfully created in environment 'dev' for repo: your-repo/Terraform-Drift-Detection
+```
+![alt text](image-20.png)
+![alt text](image-21.png)
+
+**To list down all seceret from environment using CLI**
+```sh
+gh secret list --env dev --repo your-repo/Terraform-Drift-Detection
+
+# Outcomes
+NAME                                          UPDATED            
+AZURE_CLIENT_ID                               about 1 hour ago
+AZURE_SUBSCRIPTION_ID                         about 1 hour ago
+AZURE_TENANT_ID                               about 1 hour ago
+BACKEND_AZURE_RESOURCE_GROUP_NAME             about 5 minutes ago
+BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME  about 5 minutes ago
+BACKEND_AZURE_STORAGE_ACCOUNT_NAME            about 5 minutes ago
+```
+<!-- **Nuke Terraform Cache Completely**
+bash# Remove all local Terraform cache and state lock files
+rm -rf .terraform
+rm -f .terraform.lock.hcl
+rm -f terraform.tfstate
+rm -f terraform.tfstate.backup -->
+---
 
 ### Step 2.2 — Push Infra Code to GitHub
 
@@ -445,10 +820,10 @@ terraform destroy --auto-approve
 
 ```sh
 # Preview only — no changes made
-./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev --dry-run
+./delete-oidc-app.sh demo-github-azure-oidc-connection your-repo/Terraform-Drift-Detection dev --dry-run
 
 # Normal delete
-./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev
+./delete-oidc-app.sh demo-github-azure-oidc-connection your-repo/Terraform-Drift-Detection dev
 ```
 ---
 
@@ -466,35 +841,6 @@ terraform destroy --auto-approve
 
 
 
-
-
-**Add Missing Secrets**
-
-Go to:
-👉 GitHub → Settings → Secrets and variables → Actions
-
-Add:
-
-Secret Name	Value Example
-BACKEND_AZURE_RESOURCE_GROUP_NAME	`rg-terraform-backend`
-BACKEND_AZURE_STORAGE_ACCOUNT_NAME	`tfstate12345`
-BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME	`tfstate`
-
-or run the following script
-```bash
-chmod +x 01.create-backend-secrets.sh
-
-# run the following command
-./create-backend-secrets.sh mrbalraj007/Terraform-Drift-Detection dev
-```
-
-
-**Nuke Terraform Cache Completely**
-bash# Remove all local Terraform cache and state lock files
-rm -rf .terraform
-rm -f .terraform.lock.hcl
-rm -f terraform.tfstate
-rm -f terraform.tfstate.backup
 
 <!-- 
 # Remove the management lock first (if it exists)
@@ -539,58 +885,11 @@ chmod +x 02.add-federated-credential
 | Pre-flight  | Checks Azure CLI is installed and you're logged in (prompts `az login` if not) |
 | Step 1      | Resolves the Object ID of `demo-github-azure-oidc-connection` automatically |
 | Step 2      | Idempotency check — skips creation if the credential already exists     |
-| Step 3      | Builds the exact OIDC subject: `repo:mrbalraj007/Terraform-Drift-Detection:environment:dev` |
+| Step 3      | Builds the exact OIDC subject: `repo:your-repo/Terraform-Drift-Detection:environment:dev` |
 | Step 4      | Creates the federated credential via `az ad app federated-credential create` |
 | Step 5      | Lists all credentials on the app so you can visually verify             |
 | Step 6      | Prints a reminder of GitHub Secrets needed and their correct values     |
 
-## For Push workflow
-`Storage Blob Data Contributor`
-Because you have `ARM_USE_AZUREAD: true` in my workflow, Terraform authenticates to the storage backend using the Azure AD token (not storage account keys), so `Storage Blob Data Contributor` is mandatory.
-
-The role is assigned on the Storage Account itself (not on the App Registration / OIDC). Think of it this way:
-
-`App Registration / OIDC` = Who you are (Identity)
-
-`Role Assignment on Storage Account` = What you're allowed to do (Permission)
-
-
-**Step-by-Step GUI**
-
-- Step 1 — Go to your `Storage Account`
-Azure Portal → Storage Accounts → <your-backend-storage-account>
-
-- Step 2 — `Open Access Control (IAM)`
-Click "Access Control (IAM)" in the left sidebar
-![Storage Account left menu → Access Control IAM]
-
-- Step 3 — `Add Role Assignment`
-Click "+ Add" → "Add role assignment"
-+ Add
- └─ Add role assignment   ← click this
-
-- Step 4 — Search for the Role
-On the Role tab, search for:
-`Storage Blob Data Contributor`
-Select it → click Next
-
-- Step 5 — Assign Access To
-On the `Members` tab:
-FieldValueAssign access toUser, group, or service principalMembersClick + Select membersSearch boxType `demo-github-azure-oidc-connection`
-Select it → click Select → click Next → click `Review + assign`
-
-```sh
-Azure Portal
-  └── Storage Accounts
-        └── <your-backend-storage-account>
-              └── Access Control (IAM)              ← LEFT MENU
-                    └── + Add → Add role assignment
-                          ├── Role tab
-                          │     └── Search: "Storage Blob Data Contributor" ✅
-                          └── Members tab
-                                └── Assign access to: User/group/service principal
-                                      └── Select: "demo-github-azure-oidc-connection" ✅
-```
 
 🌍 Step 3 — Create the production Environment in GitHub
 This is what creates the manual approval gate before apply runs.
@@ -626,7 +925,7 @@ The workflow will run and post a comment directly on the PR like this:
 ## Terraform Plan Summary 📋
 | Detail      | Value                  |
 |-------------|------------------------|
-| Repository  | mrbalraj007/...        |
+| Repository  | your-repo/...        |
 | Branch      | feature/test-workflow  |
 | ...                                  |
 
@@ -665,7 +964,7 @@ Shellgit fetch --pruneShow more lines
 This cleans up deleted remote branches.
 
 
-gh secret list --env dev --repo mrbalraj007/Terraform-Drift-Detection
+
 
 GitHub SecretValue from AzureAZURE_CLIENT_IDApp Registration Application (client) IDAZURE_TENANT_IDEntra ID Tenant IDAZURE_SUBSCRIPTION_IDAzure Subscription ID
 
@@ -674,3 +973,10 @@ echo "CLIENT_ID=$(az ad app list --display-name demo-github-azure-oidc-connectio
 echo "TENANT_ID=$(az account show --query tenantId -o tsv)"
 echo "SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
 ```
+
+
+
+
+
+
+
