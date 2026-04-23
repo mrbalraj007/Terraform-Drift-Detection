@@ -1,5 +1,13 @@
 # ==============================================================================
-# Terraform Destroy Workflow (Azure OIDC)
+# Terraform Destroy Workflow (Azure OIDC) — Single-file DRY
+#
+# DRY approach: both plan and destroy run in ONE job on ONE runner.
+# This eliminates all duplicated steps (checkout, setup-terraform,
+# azure-login, terraform-init) since each runs exactly once.
+#
+# Safety gates (two layers, same as the two-job version):
+#   1. workflow_dispatch input  → user must type DESTROY to proceed
+#   2. environment: dev         → Required Reviewers approval in GitHub UI
 #
 # Secret placement summary
 # ─────────────────────────────────────────────────────────────────────────────
@@ -13,10 +21,6 @@
 #
 # GitHub Repository  : (Settings → Secrets and variables → Actions)
 #   • SLACK_WEBHOOK_URL
-#
-# Both jobs declare `environment: dev` so every job can read the environment
-# secrets. Configure your approval/reviewer rule on the `dev` environment in
-# GitHub → Settings → Environments → dev → Required reviewers.
 # ==============================================================================
 
 name: Terraform Destroy (Azure)
@@ -37,39 +41,31 @@ env:
   TF_VERSION: "1.7.0"
 
   # ── Azure OIDC authentication ───────────────────────────────────────────────
-  # Values are sourced from the `dev` environment secrets (see header above).
-  ARM_USE_OIDC:                  "true"
-  ARM_CLIENT_ID:                 ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_TENANT_ID:                 ${{ secrets.AZURE_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID:           ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC:                   "true"
+  ARM_CLIENT_ID:                  ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID:                  ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID:            ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_SKIP_PROVIDER_REGISTRATION: "true"
 
   # ── Terraform remote-state backend ─────────────────────────────────────────
-  BACKEND_RG:         ${{ secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME }}
-  BACKEND_SA:         ${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}
-  BACKEND_CONTAINER:  ${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}
+  BACKEND_RG:        ${{ secrets.BACKEND_AZURE_RESOURCE_GROUP_NAME }}
+  BACKEND_SA:        ${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_NAME }}
+  BACKEND_CONTAINER: ${{ secrets.BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME }}
 
-# ────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 jobs:
-
-  # ============================================================================
-  # JOB 1 — DESTROY PLAN
-  # environment: dev  →  unlocks environment secrets for this job.
-  # If `dev` has Required Reviewers configured, this job will pause for
-  # approval before running — which is intentional for a destroy workflow.
-  # ============================================================================
-  plan:
-    name: "🔍 Terraform Destroy Plan"
+  destroy:
+    name: "💣 Terraform Destroy Plan + Apply"
     runs-on: ubuntu-latest
-    environment: dev          # ← Required so env secrets are available here
-
+    environment: dev   # ← Required Reviewers approval gate (configure in
+                       #   GitHub → Settings → Environments → dev)
     defaults:
       run:
         shell: bash
         working-directory: ./
 
     steps:
-      # ── Guard: user must type DESTROY ──────────────────────────────────────
+      # ── Gate 1: typed confirmation ──────────────────────────────────────────
       - name: Validate destroy confirmation
         run: |
           if [[ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]]; then
@@ -78,6 +74,7 @@ jobs:
           fi
           echo "✅ Destroy confirmed."
 
+      # ── Setup (runs once — no duplication) ─────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -86,7 +83,6 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # ── Passwordless login via OIDC ─────────────────────────────────────────
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -94,7 +90,6 @@ jobs:
           tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # ── Backend config passed as -backend-config flags ──────────────────────
       - name: Terraform Init
         run: |
           terraform init -input=false \
@@ -102,6 +97,7 @@ jobs:
             -backend-config="storage_account_name=${{ env.BACKEND_SA }}" \
             -backend-config="container_name=${{ env.BACKEND_CONTAINER }}"
 
+      # ── Plan ────────────────────────────────────────────────────────────────
       - name: Terraform Destroy Plan
         run: |
           terraform plan -destroy \
@@ -116,52 +112,11 @@ jobs:
           name: destroy-plan
           path: destroy-plan.txt
 
-  # ============================================================================
-  # JOB 2 — APPLY DESTROY  (needs plan + manual approval)
-  # The `environment: dev` approval gate here acts as the second human gate
-  # (first gate was in the plan job above). If you only want ONE approval
-  # gate, remove `environment: dev` from the plan job and keep Azure OIDC
-  # secrets at repository level as well.
-  # ============================================================================
-  destroy:
-    name: "💣 Terraform Destroy (Approved)"
-    needs: plan
-    runs-on: ubuntu-latest
-    environment: dev          # ← Manual approval gate lives here
-
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform ${{ env.TF_VERSION }}
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Terraform Init
-        run: |
-          terraform init -input=false \
-            -backend-config="resource_group_name=${{ env.BACKEND_RG }}" \
-            -backend-config="storage_account_name=${{ env.BACKEND_SA }}" \
-            -backend-config="container_name=${{ env.BACKEND_CONTAINER }}"
-
+      # ── Apply ───────────────────────────────────────────────────────────────
       - name: Terraform Destroy
         run: terraform destroy -auto-approve -input=false
 
-      # ── Slack notification (always runs, even on failure) ───────────────────
-      # SLACK_WEBHOOK_URL is a REPOSITORY-level secret — no env scope needed.
+      # ── Notify (always runs, even on failure) ───────────────────────────────
       - name: Notify Slack
         if: always()
         env:
