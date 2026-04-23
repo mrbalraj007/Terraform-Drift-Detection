@@ -489,7 +489,7 @@ az storage account show --name <STORAGE NAME> --resource-group <RG Name> --query
 ```
 ✅ Example output
 ```Plain Text
-/subscriptions/2fc598a4-6a52-44b9-b476-6a62640513f8/resourceGroups/rg-terraform-state/providers/Microsoft.Storage/storageAccounts/mystorageacct01
+/subscriptions/.../resourceGroups/rg-terraform-state/providers/Microsoft.Storage/storageAccounts/mystorageacct01
 ```
 Save it:
 
@@ -513,6 +513,7 @@ SP_OBJECT_ID="7268b9bc-df91-4ca9-8596-50bcc4cfe56e"
 
 
 **Step 4 — Assign Storage Blob Data Contributor**
+
 ⚠️ IMPORTANT (Git‑Bash USERS)
 You MUST disable MSYS path conversion because the scope contains /.
 
@@ -528,8 +529,7 @@ MSYS_NO_PATHCONV=1 az role assignment list --assignee-object-id "$SP_OBJECT_ID" 
 ```Plain Text
 Storage Blob Data Contributor   /subscriptions/.../storageAccounts/mystorageacct01
 ```
-
-**Step-by-Step GUI**
+<details><summary><b>Step-by-Step GUI</b></summary><br>
 
 - Step 1 — Go to your `Storage Account`
 Azure Portal → Storage Accounts → <your-backend-storage-account>
@@ -565,7 +565,8 @@ Azure Portal
                                 └── Assign access to: User/group/service principal
                                       └── Select: "demo-github-azure-oidc-connection" ✅
 ```
-
+</details>
+---
 **Add Missing Storage Secrets into environment**
 
 Go to:
