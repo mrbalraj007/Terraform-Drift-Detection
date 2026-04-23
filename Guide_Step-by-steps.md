@@ -99,23 +99,24 @@ Create `fics.json` before running the script:
 
 └── .github/
     └── workflows/
-        ├── terraform_CI_CD_JOB.yml                # ✅ CI/CD — Plan on PR, Apply on merge
-        ├── Terraform - Format and Validate.yml    # ✅ Push and Pull
-│       ├── destroy_resources.yml                  # ✅ To destroy the environment/resources 
-│       └── drift-detection.yml                    # ✅ NEW — Nightly drift check + GitHub Issues
-        └── Dummy_Azure_login_validate.yml         # ✅ For dummy azue login testing
-        └── TBT-With_MSTeam_drift-detection.ps1    # ✅ Will test it when MS Team issue fixed
+        ├── terraform_CI_CD_JOB.yml                
+        ├── Terraform - Format and Validate.yml    
+│   
+│       └── drift-detection.yml                    
+        └── Dummy_Azure_login_validate.yml         
+        └── TBT-With_MSTeam_drift-detection.ps1   when MS Team issue fixed
 
 
 TERRAFORM-DRIFT-DETECTION/
 │
 ├── .github/
 │   ├── workflows/
-│   │   ├── drift-detection.txt
-│   │   ├── Dummy_Azure_login_validate.yml
-│   │   ├── TBT-With_MSTeam_drift-detection.ps1
-│   │   ├── terraform_CI_CD_JOB.txt
-│   │   └── terraform_push_scan.txt
+│   │   ├── drift-detection.yml             # ✅ NEW — Nightly drift check + GitHub Issues
+        ├── destroy_resources.yml         # ✅ To destroy the environment/resources              
+│   │   ├── Dummy_Azure_login_validate.yml  # ✅ For dummy azue login testing
+│   │   ├── TBT-With_MSTeam_drift-detection.ps1   # ✅ Will test it 
+│   │   ├── terraform_CI_CD_JOB.yml   # ✅ CI/CD — Plan on PR, Apply on merge
+│   │   └── terraform_push_scan.yml    # ✅ Push and Pull
 │   │
 │   └── pull_request_template.md  # ✅ For pull template
 │
@@ -720,7 +721,7 @@ This is **auditable**, **native to GitHub**, and the **industry best practice** 
 
 1. Repo → **Settings** → **Environments**
 2. Click **New environment**
-3. Name it **exactly**: `destroy-approval`
+3. Name it **exactly**: `dev`
 4. Click **Configure environment**
 
 **Add Required Reviewers:**
@@ -731,11 +732,9 @@ This is **auditable**, **native to GitHub**, and the **industry best practice** 
 
 That's it — nothing else needed in the UI.
 
-<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/821b6655-4557-482b-add2-bd68e17d41bd" />
-
 ---
 
-### Step 5.2 — Runtime Execution Flow
+<!-- ### Step 5.2 — Runtime Execution Flow
 
 Here's what happens when the destroy workflow runs:
 
@@ -748,7 +747,7 @@ Here's what happens when the destroy workflow runs:
 6. Reviewer clicks Approve ✅
 7. Terraform destroy executes
 8. Slack notification sent ✅
-```
+``` -->
 
 ---
 
@@ -765,7 +764,7 @@ Here's what happens when the destroy workflow runs:
 - Click **Federated credentials** → **Add credential**
 - Choose scenario: **GitHub Actions deploying Azure resources**
   
-<img width="1696" height="879" alt="Image" src="https://github.com/user-attachments/assets/3a77ce18-4aab-4890-b6c5-b69d27957673" />
+<!-- 
 
 **Step C — Fill in the values exactly:**
 
@@ -792,7 +791,7 @@ Here's what happens when the destroy workflow runs:
 ✅ Terraform destroy
 ✅ Slack notification
 ```
-No pipeline changes needed. No new secrets. No workarounds.
+No pipeline changes needed. No new secrets. No workarounds. -->
 ---
 Slack Notification Alert
 <img width="849" height="370" alt="Image" src="https://github.com/user-attachments/assets/a428a938-22fc-4619-817a-52fcbffdb287" />
@@ -814,6 +813,23 @@ Once you're done, clean up in this order:
 cd bootstrap/
 terraform destroy --auto-approve
 ```
+## GitHub Secrets
+
+- **AZURE_CLIENT_ID**  
+  App Registration Application (Client) ID
+
+- **AZURE_TENANT_ID**  
+  Entra ID Tenant ID
+
+- **AZURE_SUBSCRIPTION_ID**  
+  Azure Subscription ID
+
+**Command to get values**
+```sh
+echo "CLIENT_ID=$(az ad app list --display-name demo-github-azure-oidc-connection --query '[].appId' -o tsv)"
+echo "TENANT_ID=$(az account show --query tenantId -o tsv)"
+echo "SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
+```
 
 **3. Delete the OIDC app registration:**
 - Download the [cleanup script](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/delete-oidc-app.sh)
@@ -827,6 +843,52 @@ terraform destroy --auto-approve
 ./delete-oidc-app.sh demo-github-azure-oidc-connection your-repo/Terraform-Drift-Detection dev
 ```
 ---
+
+**Step-by-step fix to rename the branch:**
+
+1️⃣ Check your current branch name
+Make sure you’re on the renamed branch:
+```Shell
+git branch
+```
+The * should be on the new branch name.
+
+2️⃣ **Push the renamed branch to remote:**
+
+This creates the new branch name on the remote:
+```Shell
+git push origin -u NEW_BRANCH_NAME
+```
+Example:
+```Shell
+git push origin -u feature/new-login
+```
+Show more lines
+The `-u` sets upstream tracking so future pushes work normally.
+
+3️⃣ **Delete the old branch from remote:**
+
+Now remove the old name from the remote:
+```Shell
+git push origin --delete OLD_BRANCH_NAME
+```
+
+Example:
+```Shell
+git push origin --delete feature/login-old
+```
+
+4️⃣ **Refresh in VS Code**
+If VS Code still shows the old branch:
+
+Open Command Palette → Git: Fetch
+Or run:
+
+```Shell
+git fetch --prune
+```
+This cleans up deleted remote branches.
+
 
 ## 📚 Reference Links
 
@@ -863,7 +925,7 @@ az group delete \
   --yes --no-wait
 
 az group show --name rg-terraform-state 2>/dev/null || echo "RG deleted OK" -->
-
+<!-- 
 **Add a new federated credential for repo + environment**
 need to add environment and key secret
 jobs:
@@ -928,55 +990,20 @@ The workflow will run and post a comment directly on the PR like this:
 |-------------|------------------------|
 | Repository  | your-repo/...        |
 | Branch      | feature/test-workflow  |
-| ...                                  |
+| ...                                  | -->
 
-<details><summary>Click to expand full plan output</summary>
+<!-- <details><summary>Click to expand full plan output</summary>
 ...full terraform plan output here...
 </details>
-Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
-
-
-Step-by-step fix to rename the branch
-1️⃣ Check your current branch name
-Make sure you’re on the renamed branch:
-Shellgit branchShow more lines
-The * should be on the new branch name.
-
-2️⃣ Push the renamed branch to remote
-This creates the new branch name on the remote:
-Shellgit push origin -u NEW_BRANCH_NAMEShow more lines
-Example:
-Shellgit push origin -u feature/new-login``Show more lines
-The -u sets upstream tracking so future pushes work normally.
-
-3️⃣ Delete the old branch from remote
-Now remove the old name from the remote:
-Shellgit push origin --delete OLD_BRANCH_NAMEShow more lines
-Example:
-Shellgit push origin --delete feature/login-oldShow more lines
-
-4️⃣ Refresh in VS Code
-If VS Code still shows the old branch:
-
-Open Command Palette → Git: Fetch
-Or run:
-
-Shellgit fetch --pruneShow more lines
-This cleans up deleted remote branches.
+Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated). -->
 
 
 
 
-GitHub SecretValue from AzureAZURE_CLIENT_IDApp Registration Application (client) IDAZURE_TENANT_IDEntra ID Tenant IDAZURE_SUBSCRIPTION_IDAzure Subscription ID
-
-```sh
-echo "CLIENT_ID=$(az ad app list --display-name demo-github-azure-oidc-connection --query '[].appId' -o tsv)"
-echo "TENANT_ID=$(az account show --query tenantId -o tsv)"
-echo "SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
-```
 
 
-sdf
+
+
 
 
 
