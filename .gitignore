@@ -7,7 +7,9 @@
 # Ignore the terraform state files
 terraform.tfstate
 terraform.tfstate.backup
-
+.Don't_Use_it/*
+.Don't_Use_it
+Don't_Use_it/*
 # Ignore pem file
 *.pem
 

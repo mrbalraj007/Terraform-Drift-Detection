@@ -444,11 +444,11 @@ terraform destroy --auto-approve
 - Follow the [OIDC deletion guide](https://github.com/mrbalraj007/GitHub-Action-Azure_OpenID_Connect-OIDC/blob/main/How_to_Configure_OIDC_with_Azure.md)
 
 ```sh
-# Dry run
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection --dry-run
+# Preview only — no changes made
+./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev --dry-run
 
-# Delete OIDC
-./delete-oidc-app.sh demo-github-azure-oidc-connection singhmr_xxx/Terraform-Drift-Detection
+# Normal delete
+./delete-oidc-app.sh demo-github-azure-oidc-connection mrbalraj007/Terraform-Drift-Detection dev
 ```
 ---
 
@@ -485,7 +485,7 @@ or run the following script
 chmod +x 01.create-backend-secrets.sh
 
 # run the following command
-./01.create-backend-secrets.sh
+./create-backend-secrets.sh mrbalraj007/Terraform-Drift-Detection dev
 ```
 
 
@@ -636,3 +636,41 @@ The workflow will run and post a comment directly on the PR like this:
 Every time you push a new commit to that PR branch, the old comment gets replaced with a fresh one (not duplicated).
 
 
+Step-by-step fix to rename the branch
+1️⃣ Check your current branch name
+Make sure you’re on the renamed branch:
+Shellgit branchShow more lines
+The * should be on the new branch name.
+
+2️⃣ Push the renamed branch to remote
+This creates the new branch name on the remote:
+Shellgit push origin -u NEW_BRANCH_NAMEShow more lines
+Example:
+Shellgit push origin -u feature/new-login``Show more lines
+The -u sets upstream tracking so future pushes work normally.
+
+3️⃣ Delete the old branch from remote
+Now remove the old name from the remote:
+Shellgit push origin --delete OLD_BRANCH_NAMEShow more lines
+Example:
+Shellgit push origin --delete feature/login-oldShow more lines
+
+4️⃣ Refresh in VS Code
+If VS Code still shows the old branch:
+
+Open Command Palette → Git: Fetch
+Or run:
+
+Shellgit fetch --pruneShow more lines
+This cleans up deleted remote branches.
+
+
+gh secret list --env dev --repo mrbalraj007/Terraform-Drift-Detection
+
+GitHub SecretValue from AzureAZURE_CLIENT_IDApp Registration Application (client) IDAZURE_TENANT_IDEntra ID Tenant IDAZURE_SUBSCRIPTION_IDAzure Subscription ID
+
+```sh
+echo "CLIENT_ID=$(az ad app list --display-name demo-github-azure-oidc-connection --query '[].appId' -o tsv)"
+echo "TENANT_ID=$(az account show --query tenantId -o tsv)"
+echo "SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
+```

@@ -2,7 +2,7 @@
 # ----------------------------
 # How to run it.
 # chmod +x create-backend-secrets.sh
-# ./create-backend-secrets.sh my-org/Terraform-Drift-Detection
+# ./create-backend-secrets.sh my-org/Terraform-Drift-Detection dev
 # ----------------------------
 
 set -e
@@ -11,13 +11,15 @@ set -e
 # INPUT
 # ----------------------------
 REPO_NAME="$1"
+ENVIRONMENT="$2"
 
-if [[ -z "$REPO_NAME" ]]; then
-  echo "❌ Usage: ./create-backend-secrets.sh <repo-name or org/repo>"
+if [[ -z "$REPO_NAME" || -z "$ENVIRONMENT" ]]; then
+  echo "❌ Usage: ./create-backend-secrets.sh <repo-name or org/repo> <environment>"
   exit 1
 fi
 
 echo "✅ Repo: $REPO_NAME"
+echo "✅ Environment: $ENVIRONMENT"
 
 # ----------------------------
 # GET AZURE DETAILS
@@ -52,19 +54,22 @@ echo "✅ Storage Account: $STORAGE_ACCOUNT"
 echo "✅ Container: $CONTAINER_NAME"
 
 # ----------------------------
-# CREATE GITHUB SECRETS
+# CREATE GITHUB ENVIRONMENT SECRETS
 # ----------------------------
 
 gh secret set BACKEND_AZURE_RESOURCE_GROUP_NAME \
   --repo "$REPO_NAME" \
+  --env "$ENVIRONMENT" \
   --body "$RESOURCE_GROUP"
 
 gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_NAME \
   --repo "$REPO_NAME" \
+  --env "$ENVIRONMENT" \
   --body "$STORAGE_ACCOUNT"
 
 gh secret set BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME \
   --repo "$REPO_NAME" \
+  --env "$ENVIRONMENT" \
   --body "$CONTAINER_NAME"
 
-echo "🎉 Secrets successfully created in repo: $REPO_NAME"
+echo "🎉 Secrets successfully created in environment '$ENVIRONMENT' for repo: $REPO_NAME"
