@@ -665,3 +665,12 @@ Shellgit fetch --pruneShow more lines
 This cleans up deleted remote branches.
 
 
+gh secret list --env dev --repo mrbalraj007/Terraform-Drift-Detection
+
+GitHub SecretValue from AzureAZURE_CLIENT_IDApp Registration Application (client) IDAZURE_TENANT_IDEntra ID Tenant IDAZURE_SUBSCRIPTION_IDAzure Subscription ID
+
+```sh
+echo "CLIENT_ID=$(az ad app list --display-name demo-github-azure-oidc-connection --query '[].appId' -o tsv)"
+echo "TENANT_ID=$(az account show --query tenantId -o tsv)"
+echo "SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
+```
