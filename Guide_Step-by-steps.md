@@ -221,6 +221,7 @@ Once done, verify the secrets are in place:
   
 - Click on `environment `and you will see secrets
  <img width="1564" height="898" alt="Image" src="https://github.com/user-attachments/assets/7f3c13ce-040f-41c2-8832-e77c1949549d" />
+
 ---
 
 <details>
@@ -303,9 +304,9 @@ az account list --query '[].{Name:name, ID:id, State:state}' -o table
 ```
 
 > If the output is **empty**, the role is missing — proceed to the next step.
+<br>
 
-> [!CAUTION]
-> Use `MSYS_NO_PATHCONV=1` when running in **Git Bash**. In PowerShell, you can omit it.
+> [!CAUTION] Use `MSYS_NO_PATHCONV=1` when running in **Git Bash**. In PowerShell, you can omit it.
 
 ---
 
